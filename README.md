@@ -1,41 +1,56 @@
-# NCAA All Sports — V5 Render Build
+# NCAA ALL SPORTS — FINAL BUILD
 
-Responsive NCAA all-sports dashboard with one chronological UTC feed.
+This is the single final deployment package. It is designed for the Render Web Service used by the project.
 
-Included sports:
-Football, Soccer, Basketball, Volleyball, Baseball, Softball, Ice Hockey, Field Hockey, Track & Field, Swimming & Diving.
+## Included
+- Responsive phone + PC web app
+- One chronological feed
+- UTC display
+- Yesterday / Today / Tomorrow / Next 7 Days
+- Baseball included
+- Tennis completely excluded
+- Sport-specific colors
+- Search and sport filter
+- Event detail modal
+- 10 languages: Serbian, English, Spanish, French, German, Italian, Portuguese, Dutch, Turkish, Japanese
+- Language preference saved in browser
+- SQLite storage
+- Automatic refresh scheduler
+- Source status endpoint
+- Multi-source normalization and confidence scoring
+- Render-safe `PORT` handling
 
-Tennis is intentionally excluded.
+## IMPORTANT: real data
+The application does NOT invent NCAA games. `data/seed.json` is empty.
 
-## Run locally
-Python 3.11+:
-```bash
-python app/main.py
-```
-Open http://localhost:10000
+Real events appear after you configure permitted public/licensed feeds in Render Environment Variables:
+- NCAA_SCHEDULE_URL
+- ESPN_SCHEDULE_URL
+- OFFICIAL_SCHEDULE_URL
+and, if required, their API keys.
+
+The JSON adapter accepts common shapes such as:
+`{"events":[...]}`, `{"items":[...]}`, `{"games":[...]}` or a top-level list.
+
+Do not bypass login, CAPTCHA, paywalls, robots restrictions, anti-bot controls, or contractual/API restrictions. Do not redistribute data unless the source terms allow it.
 
 ## Render
-This repository includes `render.yaml`. Create a Render Web Service from the repository and deploy.
+The included `render.yaml` uses:
+`python app/server.py`
 
-Important: the included seed data is only a UI/demo fallback. It is NOT live NCAA data.
+Render supplies the PORT environment variable. The server binds to `0.0.0.0:$PORT`, avoiding the invalid-port problem from the earlier deployment.
 
-## Live data
-The provider adapters accept JSON feeds through environment variables. Do not bypass login, CAPTCHA, robots restrictions, rate limits, paywalls, or technical access controls. Only connect sources whose terms/license/permissions allow the intended access and use.
+If the GitHub repository is already connected:
+1. Replace the repository contents with this package.
+2. Commit the changes to `main`.
+3. In Render open the existing service.
+4. Trigger **Manual Deploy → Deploy latest commit**.
+5. Add allowed feed URLs/API keys under **Environment** when available.
 
-For a real launch, configure authorized/licensed sources and map their fields to:
-sport, gender, competition, home, away, start_utc, status, venue.
+## Final-launch reality
+The software can be deployed now, but the public production dataset is only complete after the permitted live data feeds are configured and tested. The app intentionally shows no fabricated games while those feeds are absent.
 
-## Database note
-The starter deployment uses SQLite for simplicity. For production durability on Render, use a managed PostgreSQL database and adapt the persistence layer before relying on the service for long-term data retention.
-
-## Launch checklist
-1. Push this project to GitHub.
-2. Create Render Web Service from the repo.
-3. Set environment variables for permitted data providers.
-4. Connect persistent PostgreSQL storage for production.
-5. Test source terms/permissions, rate limits, attribution and redistribution rights.
-6. Run reconciliation tests against overlapping providers.
-7. Add a custom domain.
-8. Only then switch from seed/demo data to production data.
-
-No provider is claimed to be connected until its credentials/feed are actually configured and tested.
+## API
+- `/api/health`
+- `/api/events`
+- `/api/sources`

@@ -1,14 +1,12 @@
-# Data / Legal Guardrails
+# Data / Compliance Rules
 
-This project is designed to aggregate data only from sources that the operator is authorized to access and use.
-
-Do NOT:
-- bypass authentication, CAPTCHA, paywalls or anti-bot controls;
-- scrape a site when its terms/robots or technical restrictions prohibit the intended access;
-- reuse proprietary feeds outside their license;
-- redistribute copyrighted editorial content without permission;
-- present a source as connected when it is not.
-
-Prefer official/public/licensed APIs or feeds and retain source attribution where required.
-
-Before public launch, review each provider's current Terms of Use, API license, rate limits, attribution requirements and redistribution rights. This is an engineering compliance checklist, not legal advice.
+1. Use only public, licensed, or otherwise authorized data feeds.
+2. Respect each provider's Terms of Service, API limits, robots rules and redistribution rights.
+3. Never bypass authentication, CAPTCHA, paywalls, anti-bot systems or technical access controls.
+4. Store only fields permitted by the source license/terms.
+5. If a provider does not permit caching or redistribution, do not ingest it into this public site.
+6. Prefer official NCAA/conference/college feeds where public and permitted; use secondary providers only when their terms permit the intended use.
+7. The application does not claim that NCAA, ESPN, a conference, or a college endorses it.
+8. Source attribution should be displayed where required by the provider.
+9. Conflicting reports should be treated as discrepancies rather than silently fabricated/guessed values.
+10. Tennis is intentionally excluded from this project.

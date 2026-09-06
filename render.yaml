@@ -2,22 +2,13 @@ services:
   - type: web
     name: ncaa-all-sports
     runtime: python
+    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --chdir app main:run
+    startCommand: python app/server.py
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.5
-      - key: DB_PATH
-        value: /tmp/ncaa.db
-      - key: NCAA_SCHEDULE_URL
-        sync: false
-      - key: NCAA_SCHEDULE_API_KEY
-        sync: false
-      - key: ESPN_SCHEDULE_URL
-        sync: false
-      - key: ESPN_SCHEDULE_API_KEY
-        sync: false
-      - key: OFFICIAL_SCHEDULE_URL
-        sync: false
-      - key: OFFICIAL_SCHEDULE_API_KEY
-        sync: false
+      - key: PORT
+        value: 10000
+      - key: DATABASE_PATH
+        value: data/ncaa.sqlite3
+      - key: REFRESH_MINUTES
+        value: 15
