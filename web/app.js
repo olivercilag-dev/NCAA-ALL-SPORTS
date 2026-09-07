@@ -220,46 +220,40 @@ function utcDayOffset(n) {
   return dayKey(d);
 }
 
-function setup() {
-  $("lang").innerHTML = Object.keys(I18N)
-    .map(x => `<option value="${x}">${x === "he" ? "עברית" : x.toUpperCase()}</option>`)
-    .join("");
+const LANGUAGES = {
+  en: { flag: "🇬🇧", name: "English" },
+  sr: { flag: "🇷🇸", name: "Srpski" },
+  es: { flag: "🇪🇸", name: "Español" },
+  fr: { flag: "🇫🇷", name: "Français" },
+  de: { flag: "🇩🇪", name: "Deutsch" },
+  it: { flag: "🇮🇹", name: "Italiano" },
+  pt: { flag: "🇵🇹", name: "Português" },
+  nl: { flag: "🇳🇱", name: "Nederlands" },
+  tr: { flag: "🇹🇷", name: "Türkçe" },
+  ja: { flag: "🇯🇵", name: "日本語" },
+  he: { flag: "🇮🇱", name: "עברית" }
+};
 
-  $("lang").value = lang;
+$("lang").innerHTML = Object.entries(LANGUAGES)
+  .map(([code, info]) =>
+    `<option value="${code}">${info.flag} ${info.name}</option>`
+  )
+  .join("");
 
-  $("lang").onchange = e => {
-    lang = e.target.value;
-    localStorage.setItem("ncaaLang", lang);
-    setDirection();
-    render();
-  };
+$("lang").value = lang;
 
-  $("ranges").innerHTML = [
-    ["yesterday","yesterday"],
-    ["today","today"],
-    ["tomorrow","tomorrow"],
-    ["next","next"]
-  ].map(([k,v]) =>
-    `<button data-r="${v}">${t(k)}</button>`
-  ).join("");
+$("lang").onchange = e => {
+  lang = e.target.value;
+  localStorage.setItem("ncaaLang", lang);
+  setDirection();
+  render();
+};
+function setDirection() {
+  const rtl = lang === "he";
 
-  document.querySelectorAll("#ranges button").forEach(b => {
-    b.onclick = () => {
-      range = b.dataset.r;
-
-      document.querySelectorAll("#ranges button")
-        .forEach(x => x.classList.toggle("active", x === b));
-
-      render();
-    };
-  });
-
-  $("search").oninput = render;
-  $("sport").onchange = render;
-  $("close").onclick = () =>
-    $("modal").classList.add("hidden");
+  document.documentElement.dir = rtl ? "rtl" : "ltr";
+  document.documentElement.lang = lang;
 }
-
 function applyTexts() {
   setDirection();
 
@@ -475,6 +469,7 @@ function clock() {
     " UTC";
 }
 
+setDirection();
 setup();
 
 document
