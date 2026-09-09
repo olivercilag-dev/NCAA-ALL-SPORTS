@@ -12,18 +12,48 @@ const I18N = {
   he:{sub:"כל אירועי ה-NCAA • פיד כרונולוגי אחד • UTC",yesterday:"אתמול",today:"היום",tomorrow:"מחר",next:"7 הימים הבאים",search:"חפש קבוצה, ספורט, קונפרנס או מקום",all:"כל ענפי הספורט",events:"אירועים",empty:"אין אירועים מאומתים בתקופה זו.",loading:"טוען את לוח ה-NCAA…",api:"שירות הנתונים אינו זמין",sources:"מקורות",confidence:"אמינות הנתונים",scheduled:"מתוכנן",close:"סגור",sport:"ספורט",competition:"תחרות / קונפרנס",venue:"מקום",links:"קישורי משחק",playbyplay:"Play-by-Play",summary:"סיכום",score:"תוצאה",broadcast:"שידור",notes:"הערות",live:"נתונים חיים",no_data:"אין עדיין נתונים מאומתים",details:"Game Center",stats:"סטטיסטיקה",leaders:"מובילים",odds:"יחסים",winprob:"הסתברות ניצחון",news:"חדשות",raw:"נתוני הספק",official:"רשמי / מקור",status:"סטטוס",rankings:"דירוג",teams:"קבוצות",refresh:"רענון חי"}
 };
 
+const EXTRA_I18N={
+  en:{timezone:"Time zone",utc_primary:"Primary: UTC",local_time:"Selected time zone",utc_time:"UTC time",official_school:"Official school site",official_schedule:"Official schedule",search_official:"Find official school site",search_schedule:"Find official schedule",legal_note:"Public web search only • no scraping or access-control bypass"},
+  sr:{timezone:"Vremenska zona",utc_primary:"Primarno: UTC",local_time:"Izabrana vremenska zona",utc_time:"UTC vreme",official_school:"Zvanični sajt škole",official_schedule:"Zvanični raspored",search_official:"Pronađi zvanični sajt škole",search_schedule:"Pronađi zvanični raspored",legal_note:"Samo javna web pretraga • bez scraping-a i zaobilaženja zaštita"},
+  he:{timezone:"אזור זמן",utc_primary:"ברירת מחדל: UTC",local_time:"אזור הזמן שנבחר",utc_time:"זמן UTC",official_school:"אתר רשמי של המכללה",official_schedule:"לוח זמנים רשמי",search_official:"חיפוש האתר הרשמי",search_schedule:"חיפוש לוח המשחקים הרשמי",legal_note:"חיפוש אינטרנט ציבורי בלבד • ללא סריקה או עקיפת הגנות"}
+};
+
 const LANGUAGES={en:{flag:"gb",name:"English"},sr:{flag:"rs",name:"Srpski"},es:{flag:"es",name:"Español"},fr:{flag:"fr",name:"Français"},de:{flag:"de",name:"Deutsch"},it:{flag:"it",name:"Italiano"},pt:{flag:"pt",name:"Português"},nl:{flag:"nl",name:"Nederlands"},tr:{flag:"tr",name:"Türkçe"},ja:{flag:"jp",name:"日本語"},he:{flag:"il",name:"עברית"}};
 const SPORTS={football:"Football",soccer:"Soccer",basketball:"Basketball",volleyball:"Volleyball",baseball:"Baseball",softball:"Softball",ice_hockey:"Ice Hockey",field_hockey:"Field Hockey",track_field:"Track & Field",swimming_diving:"Swimming & Diving",wrestling:"Wrestling",gymnastics:"Gymnastics",lacrosse:"Lacrosse",cross_country:"Cross Country",water_polo:"Water Polo",rowing:"Rowing",golf:"Golf",fencing:"Fencing"};
 const SPORT_ALIASES={college_football:"football",ncaaf:"football",american_football:"football",mens_soccer:"soccer",womens_soccer:"soccer",mens_college_basketball:"basketball",womens_college_basketball:"basketball",ncaab:"basketball",womens_college_volleyball:"volleyball",mens_college_volleyball:"volleyball",college_baseball:"baseball",college_softball:"softball",mens_college_hockey:"ice_hockey",womens_college_hockey:"ice_hockey",hockey:"ice_hockey"};
 function canonicalSport(v){return SPORT_ALIASES[String(v||"").toLowerCase()]||String(v||"").toLowerCase()}
 let lang=localStorage.getItem("ncaaLang")||navigator.language.slice(0,2);if(!I18N[lang])lang="en";
-let range="today",events=[];const $=id=>document.getElementById(id);function t(k){return I18N[lang][k]||I18N.en[k]||k}function dayKey(d){return d.toISOString().slice(0,10)}function utcDayOffset(n){let d=new Date();d.setUTCHours(0,0,0,0);d.setUTCDate(d.getUTCDate()+n);return dayKey(d)}function flag(c){return `<img class="flag" src="/flags/${LANGUAGES[c].flag}.svg" alt="" loading="lazy">`}
+let range="today",events=[];let timezone=localStorage.getItem("ncaaTimezone")||"UTC";
+const $=id=>document.getElementById(id);
+const ULTIMATE_EN={
+  official_school:"Official school",official_schedule:"Official schedule",search_official:"Find official school",
+  search_schedule:"Find official schedule",legal_note:"Official/public links only • no scraping • no bypassing access controls",
+  local_time:"Local time",utc_time:"UTC time",competition:"Competition / Conference",venue:"Venue",
+  links:"Game links",teams:"Teams",rankings:"Rankings",broadcast:"Broadcast",playbyplay:"Play-by-Play",
+  stats:"Statistics",leaders:"Leaders",odds:"Odds",winprob:"Win probability",news:"News",live:"Live data",
+  raw:"Raw provider data",refresh:"Live refresh",details:"Game Center",no_data:"No verified data available yet",
+  school_hub:"School hub",conference_hub:"Conference hub",roster:"Roster",results:"Results",schedule:"Schedule",
+  news_school:"School news",standings:"Standings",team_page:"Team page",source_page:"Source page",
+  data_available:"Available data",provider:"Provider",competition_info:"Competition information"
+};
+function t(k){return (EXTRA_I18N[lang]&&EXTRA_I18N[lang][k])||I18N[lang][k]||ULTIMATE_EN[k]||EXTRA_I18N.en?.[k]||I18N.en[k]||k}
+function dayKey(d){return d.toISOString().slice(0,10)}
+function utcDayOffset(n){let d=new Date();d.setUTCHours(0,0,0,0);d.setUTCDate(d.getUTCDate()+n);return dayKey(d)}
+function localDateKey(iso,tz){try{const parts=new Intl.DateTimeFormat("en-CA",{timeZone:tz,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date(iso));const o=Object.fromEntries(parts.map(x=>[x.type,x.value]));return `${o.year}-${o.month}-${o.day}`}catch(_){return iso.slice(0,10)}}
+function formatZone(iso,tz,withZone=true){try{return new Intl.DateTimeFormat("en-GB",{timeZone:tz,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false,timeZoneName:withZone?"short":undefined}).format(new Date(iso))}catch(_){return iso}}
+function zoneList(){try{return Intl.supportedValuesOf("timeZone")}catch(_){return ["UTC","Europe/Belgrade","Europe/London","Europe/Paris","America/New_York","America/Chicago","America/Denver","America/Los_Angeles","Asia/Jerusalem","Asia/Tokyo","Australia/Sydney","Pacific/Auckland"]}}
+function zoneLabel(z){if(z==="UTC")return "UTC";return z.replaceAll("_"," ")}
+function flag(c){return `<img class="flag" src="/flags/${LANGUAGES[c].flag}.svg" alt="" loading="lazy">`}
+
 function setDirection(){document.documentElement.dir=lang==="he"?"rtl":"ltr";document.documentElement.lang=lang}
 function selectLanguage(c){lang=c;localStorage.setItem("ncaaLang",lang);setDirection();renderLanguagePicker();render()}
 function renderLanguagePicker(){const box=$("lang");if(!box)return;const current=LANGUAGES[lang];box.innerHTML=`<button class="lang-current" type="button" aria-expanded="false">${flag(lang)}<span>${current.name}</span><span class="lang-arrow">▾</span></button><div class="lang-menu">${Object.entries(LANGUAGES).map(([c,i])=>`<button class="lang-option ${c===lang?"selected":""}" type="button" data-lang="${c}">${flag(c)}<span>${i.name}</span></button>`).join("")}</div>`;const btn=box.querySelector(".lang-current");btn.onclick=()=>{box.classList.toggle("open");btn.setAttribute("aria-expanded",box.classList.contains("open"))};box.querySelectorAll(".lang-option").forEach(b=>b.onclick=()=>{selectLanguage(b.dataset.lang);box.classList.remove("open")});document.addEventListener("click",e=>{if(!box.contains(e.target))box.classList.remove("open")})}
-function setup(){renderLanguagePicker();$("ranges").innerHTML=[["yesterday","yesterday"],["today","today"],["tomorrow","tomorrow"],["next","next"]].map(([k,v])=>`<button data-r="${v}">${t(k)}</button>`).join("");document.querySelectorAll("#ranges button").forEach(b=>b.onclick=()=>{range=b.dataset.r;document.querySelectorAll("#ranges button").forEach(x=>x.classList.toggle("active",x===b));render()});$("search").oninput=render;$("sport").onchange=render;$("close").onclick=()=>$("modal").classList.add("hidden");$("modal").addEventListener("click",e=>{if(e.target.id==="modal")$("modal").classList.add("hidden")})}
-function applyTexts(){$("sub").textContent=t("sub");$("search").placeholder=t("search");$("ranges").querySelectorAll("button").forEach(b=>b.textContent=t(b.dataset.r==="next"?"next":b.dataset.r));const s=$("sport").value;$("sport").innerHTML=`<option value="">${t("all")}</option>`+Object.entries(SPORTS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");$("sport").value=s}
-function render(){applyTexts();const today=utcDayOffset(0);let days=range==="yesterday"?[utcDayOffset(-1)]:range==="tomorrow"?[utcDayOffset(1)]:range==="next"?Array.from({length:7},(_,i)=>utcDayOffset(i+1)):[today];const q=($("search").value||"").toLowerCase(),sp=$("sport").value;const list=events.filter(e=>e.start_utc&&days.includes(e.start_utc.slice(0,10))&&(!sp||e.sport===sp)&&JSON.stringify(e).toLowerCase().includes(q));$("feed").innerHTML="";if(!list.length){$("feed").innerHTML=`<div class="empty">${t("empty")}</div>`;return}for(const day of days){const arr=list.filter(e=>e.start_utc.slice(0,10)===day);if(!arr.length)continue;const h=document.createElement("div");h.className="day";h.textContent=`${day} UTC • ${arr.length} ${t("events")}`;$("feed").appendChild(h);arr.forEach(e=>{const card=document.createElement("article");card.className="event";const score=(e.home_score??"")!==""||(e.away_score??"")!==""?`<span class="mini-score">${e.home_score??"—"} : ${e.away_score??"—"}</span>`:"";card.innerHTML=`<div class="time">${e.start_utc.slice(11,16)}<br><small>UTC</small></div><div><span class="sportbar" style="background:${e.color||"#94a3b8"}"></span><div class="teams">${e.home||"TBD"} ${score}<span class="vs">VS</span> ${e.away||"TBD"}</div><div class="meta">${SPORTS[e.sport]||e.sport} • ${e.conference||e.competition||"NCAA"}${e.venue?" • "+e.venue:""}</div></div><div class="badge"><span class="status">${e.status||t("scheduled")}</span><small>${t("details")} ↗</small></div>`;card.onclick=()=>detail(e);$("feed").appendChild(card)})}}
+function renderTimezonePicker(){const box=$("tz");if(!box)return;const zones=zoneList();if(!zones.includes("UTC"))zones.unshift("UTC");if(!zones.includes(timezone))timezone="UTC";box.innerHTML=`<label class="tz-label" for="timezone">${esc(t("timezone"))}</label><select id="timezone" aria-label="${esc(t("timezone"))}">${zones.map(z=>`<option value="${esc(z)}" ${z===timezone?"selected":""}>${esc(zoneLabel(z))}</option>`).join("")}</select>`;$("timezone").onchange=e=>{timezone=e.target.value;localStorage.setItem("ncaaTimezone",timezone);render();clock()}}
+function zoneTime(iso){return formatZone(iso,timezone,true)}
+function officialSearchButton(team,kind){if(!team||team==="TBD")return"";const q=kind==="schedule"?`${team} official athletics schedule`:`${team} official athletics`;const u=`https://www.google.com/search?q=${encodeURIComponent(q)}`;return linkButton(u,kind==="schedule"?t("search_schedule"):t("search_official"))}
+function setup(){renderLanguagePicker();renderTimezonePicker();$("ranges").innerHTML=[["yesterday","yesterday"],["today","today"],["tomorrow","tomorrow"],["next","next"]].map(([k,v])=>`<button data-r="${v}">${t(k)}</button>`).join("");document.querySelectorAll("#ranges button").forEach(b=>b.onclick=()=>{range=b.dataset.r;document.querySelectorAll("#ranges button").forEach(x=>x.classList.toggle("active",x===b));render()});$("search").oninput=render;$("sport").onchange=render;$("close").onclick=()=>$("modal").classList.add("hidden");$("modal").addEventListener("click",e=>{if(e.target.id==="modal")$("modal").classList.add("hidden")})}
+function applyTexts(){renderTimezonePicker();$("sub").textContent=t("sub");$("search").placeholder=t("search");$("ranges").querySelectorAll("button").forEach(b=>b.textContent=t(b.dataset.r==="next"?"next":b.dataset.r));const s=$("sport").value;$("sport").innerHTML=`<option value="">${t("all")}</option>`+Object.entries(SPORTS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");$("sport").value=s}
+function render(){applyTexts();const todayKey=localDateKey(new Date().toISOString(),timezone);const base=new Date(todayKey+"T00:00:00Z");const offset=range==="yesterday"?-1:range==="tomorrow"?1:0;let days=[];if(range==="next"){for(let i=1;i<=7;i++){const d=new Date(base);d.setUTCDate(d.getUTCDate()+i);days.push(dayKey(d))}}else{const d=new Date(base);d.setUTCDate(d.getUTCDate()+offset);days=[dayKey(d)]}const q=($("search").value||"").toLowerCase(),sp=$("sport").value;const list=events.filter(e=>e.start_utc&&days.includes(localDateKey(e.start_utc,timezone))&&(!sp||e.sport===sp)&&JSON.stringify(e).toLowerCase().includes(q));$("feed").innerHTML="";if(!list.length){$("feed").innerHTML=`<div class="empty">${t("empty")}</div>`;return}for(const day of days){const arr=list.filter(e=>localDateKey(e.start_utc,timezone)===day);if(!arr.length)continue;const h=document.createElement("div");h.className="day";h.textContent=`${day} • ${arr.length} ${t("events")} • ${zoneLabel(timezone)}`;$("feed").appendChild(h);arr.forEach(e=>{const card=document.createElement("article");card.className="event";const score=(e.home_score??"")!==""||(e.away_score??"")!==""?`<span class="mini-score">${e.home_score??"—"} : ${e.away_score??"—"}</span>`:"";const local=zoneTime(e.start_utc);const utc=e.start_utc.replace("T"," ").replace("Z"," UTC");card.innerHTML=`<div class="time"><strong>${esc(local.slice(12,17))}</strong><br><small>${esc(zoneLabel(timezone))}</small><div class="utc-mini">${esc(utc.slice(11,16))} UTC</div></div><div><span class="sportbar" style="background:${e.color||"#94a3b8"}"></span><div class="teams">${esc(e.home||"TBD")} ${score}<span class="vs">VS</span> ${esc(e.away||"TBD")}</div><div class="meta">${esc(SPORTS[e.sport]||e.sport)} • ${esc(e.conference||e.competition||"NCAA")}${e.venue?" • "+esc(e.venue):""}</div></div><div class="badge"><span class="status">${esc(e.status||t("scheduled"))}</span><small>${t("details")} ↗</small></div>`;card.onclick=()=>detail(e);$("feed").appendChild(card)})}}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
 function linkButton(url,label){if(!url)return"";return `<a class="detail-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)} ↗</a>`}
 function simpleValue(v){if(v==null)return"";if(typeof v==="string"||typeof v==="number"||typeof v==="boolean")return esc(v);if(Array.isArray(v))return v.map(simpleValue).join(" • ");if(typeof v==="object")return Object.entries(v).filter(([k,x])=>x!=null&&x!=="").slice(0,12).map(([k,x])=>`<div><b>${esc(k)}:</b> ${simpleValue(x)}</div>`).join("");return""}
@@ -60,7 +90,135 @@ function renderStats(v){
 }
 function renderSituation(v){if(!v||typeof v!=="object"||!Object.keys(v).length)return"";const keys=["downDistanceText","possessionText","lastPlay","shortDownDistanceText","isRedZone","possession"].filter(k=>v[k]!=null&&v[k]!=="");return keys.length?`<div class="situation-card">${keys.map(k=>`<div><span>${esc(k.replace(/([A-Z])/g," $1"))}</span><b>${esc(typeof v[k]==="object"?JSON.stringify(v[k]):v[k])}</b></div>`).join("")}</div>`:""}
 function renderNews(v){if(!Array.isArray(v)||!v.length)return"";return `<div class="news-list">${v.slice(0,10).map(n=>{const h=n.headline||n.title||n.description||"News";const u=n.links?.web?.href||n.links?.api?.href||n.link;return u?linkButton(u,h):`<div class="news-item">${esc(h)}</div>`}).join("")}</div>`}
-async function detail(e){const d=$("detail");d.innerHTML=`<div class="detail-loading">${t("loading")}</div>`;$("modal").classList.remove("hidden");try{const r=await fetch("/api/event/"+encodeURIComponent(e.id),{cache:"no-store"}),x=r.ok?await r.json():e;if(!r.ok)throw new Error(x.error||"HTTP "+r.status);const links=x.links||{},seen=new Set(),buttons=[];for(const [k,u] of Object.entries(links)){if(u&&!seen.has(u)){seen.add(u);const label=k.replace(/[-_]/g," ").replace(/\b\w/g,c=>c.toUpperCase());buttons.push(linkButton(u,label))}}if(x.source_url&&!seen.has(x.source_url)){seen.add(x.source_url);buttons.push(linkButton(x.source_url,t("official")))}const hasScore=(x.home_score??"")!==""||(x.away_score??"")!=="";const score=hasScore?`<div class="scoreline"><div><span class="score-team">${esc(x.home||"TBD")}</span><b>${esc(x.home_score??"—")}</b></div><span class="score-sep">:</span><div><b>${esc(x.away_score??"—")}</b><span class="score-team">${esc(x.away||"TBD")}</span></div></div>`:"";const bcast=(x.broadcasts||[]).length?section(t("broadcast"),`<div class="pill-list">${x.broadcasts.map(esc).map(v=>`<span class="pill">${v}</span>`).join("")}</div>`):"";const notes=(x.notes||[]).length?section(t("notes"),x.notes.map(n=>`<p>${esc(n)}</p>`).join("")):"";const s=x.summary||{};const live=x.summary_available?section(t("playbyplay"),renderPlays(s.plays))+section(t("leaders"),renderLeaders(s.leaders))+section(t("stats"),renderStats(s.boxscore))+section(t("odds"),renderStats({items:s.odds}))+section(t("winprob"),renderStats({items:s.winprobability}))+section(t("news"),renderNews(s.news))+section(t("live"),renderSituation(s.situation)):"";const raw=x.summary_available?`<details class="raw"><summary>${t("raw")}</summary><pre>${esc(JSON.stringify(s.raw||s,null,2))}</pre></details>`:"";d.innerHTML=`<div class="gc-head"><div><div class="eyebrow">${esc(t("details"))}</div><h2>${esc(x.home||"TBD")} <span>vs</span> ${esc(x.away||"TBD")}</h2><div class="gc-status">${esc(x.status||t("scheduled"))}</div></div>${score}</div><div class="gc-grid"><div class="gc-main"><div class="info-grid"><div><label>${t("sport")}</label><strong>${esc(SPORTS[x.sport]||x.sport||"TBD")}</strong></div><div><label>${t("competition")}</label><strong>${esc(x.competition||"NCAA")}${x.conference?" / "+esc(x.conference):""}</strong></div><div><label>UTC</label><strong>${esc(x.start_utc||"TBD")}</strong></div><div><label>${t("venue")}</label><strong>${esc(x.venue||"TBD")}</strong></div><div><label>${t("confidence")}</label><strong>${Math.round((x.confidence||0)*100)}%</strong></div><div><label>${t("status")}</label><strong>${esc(x.status||t("scheduled"))}</strong></div></div>${section(t("links"),buttons.length?buttons.join(""):`<span class="muted">${t("no_data")}</span>`)}${bcast}${notes}${live}${raw}</div><aside class="gc-side">${section(t("teams"),`<div class="team-side"><strong>${esc(x.home||"TBD")}</strong><span>vs</span><strong>${esc(x.away||"TBD")}</strong></div>`)}${x.home_rank||x.away_rank?section(t("rankings"),`<div class="rankings"><span>${esc(x.home_rank||"—")}</span><b>:</b><span>${esc(x.away_rank||"—")}</span></div>`):""}<div class="side-note">${t("refresh")}: ${new Date().toISOString().replace("T"," ").slice(0,19)} UTC</div></aside></div>`}catch(err){d.innerHTML=`<h2>${esc(e.home||"TBD")} vs ${esc(e.away||"TBD")}</h2><div class="empty">${esc(err.message||"Unable to load event details.")}</div>`}}
+async function detail(e){
+  const d=$("detail");
+  d.innerHTML=`<div class="detail-loading">${t("loading")}</div>`;
+  $("modal").classList.remove("hidden");
+  try{
+    const r=await fetch("/api/event/"+encodeURIComponent(e.id),{cache:"no-store"});
+    const x=r.ok?await r.json():e;
+    if(!r.ok)throw new Error(x.error||"HTTP "+r.status);
+
+    const links=x.links||{}, seen=new Set(), buttons=[];
+    for(const [k,u] of Object.entries(links)){
+      if(u&&!seen.has(u)){seen.add(u);const label=k.replace(/[-_]/g," ").replace(/\b\w/g,c=>c.toUpperCase());buttons.push(linkButton(u,label))}
+    }
+    if(x.source_url&&!seen.has(x.source_url)){seen.add(x.source_url);buttons.push(linkButton(x.source_url,t("official")))}
+
+    const searchLink=(q,label)=>linkButton(`https://www.google.com/search?q=${encodeURIComponent(q)}`,label);
+    const teamProfiles=Array.isArray(x.team_profiles)?x.team_profiles:[];
+    const headerComp=x.summary?.header?.competitions?.[0]||{};
+    const headerTeams=Array.isArray(headerComp.competitors)?headerComp.competitors:[];
+    const profiles=teamProfiles.length?teamProfiles:headerTeams.map(c=>({team:c?.team||{},home_away:c?.homeAway,rank:c?.rank,score:c?.score,records:c?.records||[],winner:c?.winner}));
+    const teamCard=(p,side)=>{
+      const tm=p.team&&typeof p.team==="object"?p.team:p;
+      const name=tm.displayName||tm.name||tm.location||"TBD";
+      const logo=tm.logo||(Array.isArray(tm.logos)&&tm.logos[0]?.href)||"";
+      const records=Array.isArray(p.records)?p.records:[];
+      const rec=records.map(r=>r?.summary||r?.displayValue||r?.value).filter(Boolean).slice(0,3);
+      let providerLinks=[];
+      const rawLinks=Array.isArray(tm.links)?tm.links:(Array.isArray(p.links)?p.links:[]);
+      for(const l of rawLinks){
+        if(!l||typeof l!=="object"||!l.href)continue;
+        const rel=Array.isArray(l.rel)?l.rel.join(" ").toLowerCase():String(l.rel||"").toLowerCase();
+        const text=l.text||l.shortText||l.label||"Team page";
+        providerLinks.push({url:l.href,label:text,rel});
+      }
+      const teamName=tm.displayName||tm.name||e[side]||"";
+      const official=searchLink(`${teamName} official athletics`,t("official_school"));
+      const schedule=searchLink(`${teamName} official athletics schedule`,t("official_schedule"));
+      const conference=x.conference||x.competition||"NCAA";
+      const conf=searchLink(`${conference} NCAA official`,`${conference} ↗`);
+      const firstTeamLink=providerLinks.find(l=>/team|official|athletics|school|profile/i.test(l.rel+" "+l.label));
+      const schoolUrl=firstTeamLink?.url||`https://www.google.com/search?q=${encodeURIComponent(teamName+" official athletics")}`;
+      const logoHtml=logo?`<a class="team-logo-link" href="${esc(schoolUrl)}" target="_blank" rel="noopener noreferrer" title="${esc(t("official_school"))}"><img class="team-logo" src="${esc(logo)}" alt="${esc(teamName)}"></a>`:`<a class="team-logo-link placeholder" href="${esc(schoolUrl)}" target="_blank" rel="noopener noreferrer" title="${esc(t("official_school"))}">NCAA</a>`;
+      const providerHtml=providerLinks.slice(0,4).map(l=>linkButton(l.url,l.label)).join("");
+      const hubButtons=[
+        official,schedule,
+        searchLink(`${teamName} official athletics roster`,t("roster")),
+        searchLink(`${teamName} official athletics results`,t("results")),
+        searchLink(`${teamName} official athletics news`,t("news_school")),
+        searchLink(`${teamName} official athletics standings`,t("standings")),
+        conf,providerHtml
+      ].join("");
+      return `<article class="team-profile">
+        <div class="team-profile-top">${logoHtml}<div class="team-profile-name"><span class="team-side-label">${side==="home"?"HOME":"AWAY"}</span><h3>${esc(teamName)}</h3><div class="team-abbr">${esc(tm.abbreviation||"")}${tm.location&&tm.location!==teamName?" • "+esc(tm.location):""}</div></div></div>
+        <div class="team-facts">
+          ${p.rank!=null?`<div><span>Rank</span><b>#${esc(p.rank)}</b></div>`:""}
+          ${p.score!=null?`<div><span>Score</span><b>${esc(p.score)}</b></div>`:""}
+          ${rec.length?`<div><span>Record</span><b>${esc(rec.join(" • "))}</b></div>`:""}
+          ${tm.id?`<div><span>Team ID</span><b>${esc(tm.id)}</b></div>`:""}
+        </div>
+        <div class="team-actions">${hubButtons}</div>
+      </article>`;
+    };
+    const teamSection=profiles.length?section(t("teams"),`<div class="team-profile-grid">${teamCard(profiles[0],"home")}${teamCard(profiles[1],"away")}</div>`):"";
+
+    const conferenceName=x.conference||x.competition||"NCAA";
+    const conferenceSection=section(t("competition"),`<div class="conference-hub"><div><strong>${esc(conferenceName)}</strong><span>${x.conference?esc(x.competition||"NCAA"):t("official")}</span></div>${searchLink(`${conferenceName} NCAA conference official`,`${conferenceName} • official ↗`)}${searchLink(`${conferenceName} NCAA standings`,`${conferenceName} • standings ↗`)}${searchLink(`${conferenceName} NCAA teams`,`${conferenceName} • teams ↗`)}</div>`);
+
+    const officialSearch=`<div class="official-search"><div class="official-note">${t("legal_note")}</div><div class="official-buttons">${officialSearchButton(x.home,"school")}${officialSearchButton(x.home,"schedule")}${officialSearchButton(x.away,"school")}${officialSearchButton(x.away,"schedule")}</div></div>`;
+    const hasScore=(x.home_score??"")!==""||(x.away_score??"")!=="";
+    const score=hasScore?`<div class="scoreline"><div><span class="score-team">${esc(x.home||"TBD")}</span><b>${esc(x.home_score??"—")}</b></div><span class="score-sep">:</span><div><b>${esc(x.away_score??"—")}</b><span class="score-team">${esc(x.away||"TBD")}</span></div></div>`:"";
+    const bcast=(x.broadcasts||[]).length?section(t("broadcast"),`<div class="pill-list">${x.broadcasts.map(esc).map(v=>`<span class="pill">${v}</span>`).join("")}</div>`):"";
+    const notes=(x.notes||[]).length?section(t("notes"),x.notes.map(n=>`<p>${esc(n)}</p>`).join("")):"";
+    const s=x.summary||{};
+    const live=x.summary_available
+      ?section(t("playbyplay"),renderPlays(s.plays))
+      +section(t("leaders"),renderLeaders(s.leaders))
+      +section(t("stats"),renderStats(s.boxscore))
+      +section(t("odds"),renderStats({items:s.odds}))
+      +section(t("winprob"),renderStats({items:s.winprobability}))
+      +section(t("news"),renderNews(s.news))
+      +section(t("live"),renderSituation(s.situation))
+      :"";
+    const raw=x.summary_available?`<details class="raw"><summary>${t("raw")}</summary><pre>${esc(JSON.stringify(s.raw||s,null,2))}</pre></details>`:"";
+    const available=[
+      ["Score / status",(x.status||x.home_score!=null||x.away_score!=null)],
+      ["Venue",!!x.venue],["Competition",!!x.competition],["Conference",!!x.conference],
+      ["Team profiles",teamProfiles.length>=2],["Team logos",teamProfiles.some(p=>p.logo||p.logos?.length)],
+      ["Team links",teamProfiles.some(p=>Array.isArray(p.links)&&p.links.length)],
+      ["Broadcast",Array.isArray(x.broadcasts)&&x.broadcasts.length],
+      ["Play-by-Play",Array.isArray(s.plays)&&s.plays.length],
+      ["Statistics",!!(s.boxscore&&Object.keys(s.boxscore).length)],
+      ["Leaders",Array.isArray(s.leaders)&&s.leaders.length],
+      ["Odds",Array.isArray(s.odds)&&s.odds.length],
+      ["Win probability",Array.isArray(s.winprobability)&&s.winprobability.length],
+      ["News",Array.isArray(s.news)&&s.news.length],
+      ["Provider links",Object.keys(x.links||{}).length]
+    ];
+    const availabilitySection=section(t("data_available"),`<div class="availability-grid">${available.map(([k,v])=>`<div class="${v?"available":"unavailable"}"><span>${v?"✓":"—"}</span><b>${esc(k)}</b><small>${v?t("available"):t("no_data")}</small></div>`).join("")}</div>`);
+    const local=formatZone(x.start_utc,timezone,true);
+    const utc=x.start_utc||"TBD";
+
+    d.innerHTML=`<div class="gc-head">
+      <div><div class="eyebrow">${esc(t("details"))}</div><h2>${esc(x.home||"TBD")} <span>vs</span> ${esc(x.away||"TBD")}</h2><div class="gc-status">${esc(x.status||t("scheduled"))}</div></div>${score}
+    </div>
+    ${teamSection}
+    <div class="gc-grid"><div class="gc-main">
+      <div class="info-grid">
+        <div><label>${t("sport")}</label><strong>${esc(SPORTS[x.sport]||x.sport||"TBD")}</strong></div>
+        <div><label>${t("competition")}</label><strong>${esc(x.competition||"NCAA")}${x.conference?" / "+esc(x.conference):""}</strong></div>
+        <div><label>${esc(t("local_time"))} · ${esc(zoneLabel(timezone))}</label><strong>${esc(local)}</strong></div>
+        <div><label>${t("utc_time")}</label><strong>${esc(utc)}</strong></div>
+        <div><label>${t("venue")}</label><strong>${esc(x.venue||"TBD")}</strong></div>
+        <div><label>${t("confidence")}</label><strong>${Math.round((x.confidence||0)*100)}%</strong></div>
+      </div>
+      ${conferenceSection}
+      ${section(t("links"),buttons.length?buttons.join("")+officialSearch:officialSearch)}
+      ${bcast}${notes}${availabilitySection}${live}${raw}
+    </div>
+    <aside class="gc-side">
+      ${section(t("teams"),`<div class="team-side"><strong>${esc(x.home||"TBD")}</strong><span>vs</span><strong>${esc(x.away||"TBD")}</strong></div>`)}
+      ${x.home_rank||x.away_rank?section(t("rankings"),`<div class="rankings"><span>${esc(x.home_rank||"—")}</span><b>:</b><span>${esc(x.away_rank||"—")}</span></div>`):""}
+      <div class="side-note">${t("refresh")}: ${new Date().toISOString().replace("T"," ").slice(0,19)} UTC</div>
+    </aside></div>`;
+  }catch(err){
+    d.innerHTML=`<h2>${esc(e.home||"TBD")} vs ${esc(e.away||"TBD")}</h2><div class="empty">${esc(err.message||"Unable to load event details.")}</div>`;
+  }
+}
 async function load(){try{const response=await fetch("/api/events",{cache:"no-store",headers:{Accept:"application/json"}});if(!response.ok)throw new Error("HTTP "+response.status);const data=await response.json();if(!Array.isArray(data))throw new Error("Invalid API response");events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));render()}catch(error){console.error("NCAA API:",error);events=[];$("feed").innerHTML=`<div class="empty">${t("api")}<br><br><small>${esc(error.message||"Unknown error")}</small></div>`}}
-function clock(){const d=new Date();$("clock").textContent=d.toISOString().replace("T"," ").slice(0,19)+" UTC"}
-setDirection();setup();document.querySelector('#ranges button[data-r="today"]').classList.add("active");load();clock();setInterval(clock,1000);setInterval(load,60000);
+function clock(){const d=new Date();const local=formatZone(d.toISOString(),timezone,true);const utc=d.toISOString().replace("T"," ").slice(0,19)+" UTC";$("clock").innerHTML=`<span class="clock-main">${esc(local)}</span><span class="clock-utc">${esc(utc)}</span>`}
+setDirection();setup();
+setTimeout(()=>{const s=document.getElementById("brandSplash");if(s){s.classList.add("splash-hide");setTimeout(()=>s.remove(),500)}},1400);
+document.querySelector('#ranges button[data-r="today"]').classList.add("active");load();clock();setInterval(clock,1000);setInterval(load,60000);

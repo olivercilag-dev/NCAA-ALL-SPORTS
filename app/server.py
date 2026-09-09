@@ -558,6 +558,47 @@ class Handler(BaseHTTPRequestHandler):
                             "header":summary.get("header") or {},
                             "gamepackage":summary.get("gamepackage") or {},
                             "raw":summary}
+                        # Build practical team/conference cards from the provider response.
+                        # Only provider-supplied values are exposed; no school data is invented.
+                        team_profiles = []
+                        for tc in (summary_comp.get("competitors") or []):
+                            if not isinstance(tc, dict):
+                                continue
+                            tm = tc.get("team") if isinstance(tc.get("team"), dict) else {}
+                            if not isinstance(tm, dict):
+                                tm = {}
+                            profile = {
+                                "id": tm.get("id") or tc.get("id"),
+                                "name": tm.get("displayName") or tm.get("name") or _first_name(tm) or "",
+                                "short_name": tm.get("shortDisplayName") or tm.get("shortName") or "",
+                                "abbreviation": tm.get("abbreviation") or "",
+                                "location": tm.get("location") or "",
+                                "slug": tm.get("slug") or "",
+                                "logo": tm.get("logo") or "",
+                                "logos": tm.get("logos") if isinstance(tm.get("logos"), list) else [],
+                                "color": tm.get("color") or "",
+                                "alternate_color": tm.get("alternateColor") or "",
+                                "rank": tc.get("rank"),
+                                "score": tc.get("score"),
+                                "home_away": tc.get("homeAway") or "",
+                                "winner": tc.get("winner"),
+                                "records": tc.get("records") if isinstance(tc.get("records"), list) else [],
+                                "links": tm.get("links") if isinstance(tm.get("links"), list) else []
+                            }
+                            team_profiles.append(profile)
+                        out["team_profiles"] = team_profiles
+                        comp_name = (summary_comp.get("league") or {}).get("name") if isinstance(summary_comp.get("league"), dict) else None
+                        if not comp_name:
+                            comp_name = out.get("conference") or out.get("competition") or ""
+                        league = summary_comp.get("league") if isinstance(summary_comp.get("league"), dict) else {}
+                        out["competition_profile"] = {
+                            "name": comp_name or out.get("competition") or "NCAA",
+                            "conference": out.get("conference") or "",
+                            "league": league.get("name") or "",
+                            "abbreviation": league.get("abbreviation") or "",
+                            "slug": league.get("slug") or "",
+                            "links": (summary_comp.get("links") if isinstance(summary_comp.get("links"), list) else [])
+                        }
                     except Exception as ex:
                         out["summary_available"]=False; out["summary_error"]=str(ex)[:180]
             self.send_json(out); return

@@ -3,21 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NCAA All Sports</title>
+<title>NCAA All Sports — All NCAA Events in One Place</title>
+<link rel="icon" type="image/png" href="/assets/favicon.png">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 <header>
-  <div>
-    <div class="brand">NCAA ALL SPORTS</div>
-    <div class="sub" id="sub">All NCAA events • One chronological feed • UTC</div>
+  <div class="brand-wrap">
+    <img class="site-logo site-logo-header" src="/assets/ncaa-all-sports-logo.png" alt="NCAA All Sports">
+    <div>
+      <div class="brand">NCAA ALL SPORTS</div>
+      <div class="sub" id="sub">All NCAA events • One chronological feed • UTC</div>
+    </div>
   </div>
   <div class="headright">
     <div id="lang" class="language-picker"></div>
+    <div id="tz" class="timezone-picker"></div>
     <div id="clock"></div>
   </div>
 </header>
+<div id="brandSplash" class="brand-splash" aria-hidden="true">
+  <div class="splash-inner">
+    <img src="/assets/ncaa-all-sports-logo.png" alt="NCAA All Sports">
+    <div class="splash-title">NCAA ALL SPORTS</div>
+    <div class="splash-tagline">ALL NCAA SPORTS • ONE PLACE • ALL DATA</div>
+    <div class="splash-loader"></div>
+  </div>
+</div>
 <main>
+  <section class="brand-hero">
+    <div class="brand-hero-copy">
+      <span class="eyebrow">NCAA ALL SPORTS</span>
+      <h1>All NCAA sports. <span>One place.</span></h1>
+      <p>Schedules, scores, statistics, conferences, school links and Game Center — with UTC as the primary time zone.</p>
+    </div>
+    <img class="site-logo site-logo-hero" src="/assets/ncaa-all-sports-logo.png" alt="NCAA All Sports">
+  </section>
   <nav class="ranges" id="ranges"></nav>
   <section class="tools">
     <input id="search" placeholder="Search team, sport, conference or venue">
@@ -27,6 +48,11 @@
   <div id="status"></div>
   <section id="feed"></section>
 </main>
+<footer class="site-footer">
+  <div><strong>NCAA ALL SPORTS</strong> · Independent sports-information interface</div>
+  <div>© 2026 NCAA ALL SPORTS · Original site identity &amp; artwork</div>
+  <div>Not affiliated with or endorsed by the NCAA, ESPN, conferences, or schools.</div>
+</footer>
 <div id="modal" class="modal hidden">
   <div class="dialog">
     <button id="close" aria-label="Close">×</button>

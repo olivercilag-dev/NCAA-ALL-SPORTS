@@ -11,3 +11,9 @@
 9. Conflicting reports are treated as discrepancies rather than silently fabricated values.
 10. Tennis is intentionally excluded.
 11. The application deletes legacy `SEED` events at startup so placeholder data cannot be served as live data.
+
+## Official school link policy
+The application may display official URLs supplied by a verified public/authorized source. If no verified URL is available, the UI may offer a normal user-clicked web search for the school's official athletics site or schedule. It does not scrape search-engine result pages, bypass robots/access controls, or fabricate a school URL. Any future source added to `data/official_sources.json` must be public/authorized and permitted for this use.
+
+## Time zones
+UTC is the default/primary display. Users may select an IANA time zone supported by their browser. Source timestamps remain normalized to UTC; time-zone conversion is performed in the browser for display only.

@@ -1,4 +1,4 @@
-# NCAA ALL SPORTS — FINAL
+# NCAA ALL SPORTS — ULTIMATE ULTIMATE
 
 Final release with polished Game Center, verified ESPN/public-source ingestion, multilingual UI, UTC chronological feed, and provider data sections.
 
@@ -56,3 +56,15 @@ Start: `python app/server.py`
 V6 adds verified official-school source support for public/authorized JSON and iCalendar feeds, preserves official school/schedule/event links, and exposes provider PBP/Gamecast/Summary/Box Score links when supplied. No source URL is fabricated and access controls are not bypassed.
 
 V7 fixes the ESPN scoreboard parser to tolerate optional fields returned as strings and prevents one malformed optional field from dropping an entire feed/event. It preserves V6 official-source infrastructure and does not fabricate events.
+
+## Final time-zone and official-source behavior
+- UTC is the default and primary time zone.
+- Users can choose any IANA time zone supported by the browser (with UTC first).
+- Event dates, day grouping, event times and the live clock follow the selected zone; the original UTC timestamp remains visible in Game Center.
+- Official school/schedule links are shown when a verified source provides them.
+- When no verified official URL is available, Game Center provides a user-clicked public web search for the school's official athletics site/schedule. The application does not scrape search results, bypass access controls, or invent official URLs.
+
+## ULTIMATE ULTIMATE Game Center
+The Game Center is designed as a single information hub for each event: team profiles, logos, provider links, official-school/schedule search links, conference hub links, venue, UTC/local time, score/status, broadcasts, play-by-play, statistics, leaders, odds, win probability, news and raw provider data when the authorized/public source actually supplies them.
+
+Unavailable fields are shown as unavailable rather than fabricated. The project does not claim that one free public source contains every NCAA school or every sport. To add additional schools/conferences, add only verified public/authorized feeds or links permitted by their terms.
