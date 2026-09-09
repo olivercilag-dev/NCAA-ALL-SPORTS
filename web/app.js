@@ -44,10 +44,10 @@ function renderStats(v){
   if(!v||typeof v!=="object")return"";
   const teams=Array.isArray(v.teams)?v.teams:[];
   if(teams.length){
-    const cards=teams.slice(0,4).map(t=>{
-      const team=t.team||t;
+    const cards=teams.slice(0,4).map(teamEntry=>{
+      const team=teamEntry.team||teamEntry;
       const name=team.displayName||team.name||team.location||"Team";
-      const stats=Array.isArray(t.statistics)?t.statistics:[];
+      const stats=Array.isArray(teamEntry.statistics)?teamEntry.statistics:[];
       const rows=stats.slice(0,20).map(st=>{const label=st.displayName||st.name||st.label;const val=st.displayValue??st.value??"";return label?`<div class="stat-row"><span>${esc(label)}</span><b>${esc(val)}</b></div>`:""}).join("");
       return `<div class="stat-card"><h4>${esc(name)}</h4>${rows||`<div class="muted">${t("no_data")}</div>`}</div>`;
     }).join("");
