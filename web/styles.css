@@ -513,3 +513,114 @@ main{max-width:1450px;margin:auto;padding:12px 2.6% 30px}.hero-banner{height:210
 }
 .clear-filters:hover{background:rgba(42,79,174,.55);color:#fff}
 @media(max-width:700px){.time-filter-row{grid-template-columns:1fr 1fr}}
+
+/* =========================================================
+   FINAL LOCKED UI — athlete hero + premium dashboard
+   This is the final visual layer. It intentionally replaces
+   the placeholder emoji hero with the supplied athlete montage.
+   ========================================================= */
+:root{
+  --ui-bg:#020816;
+  --ui-panel:#061a39;
+  --ui-panel-deep:#03132d;
+  --ui-border:rgba(19,112,220,.72);
+  --ui-blue:#168cff;
+  --ui-cyan:#18c6ff;
+  --ui-text:#f5f9ff;
+  --ui-muted:#89a9d5;
+}
+html,body{background:var(--ui-bg)}
+body{
+  background:
+    radial-gradient(circle at 50% -8%,rgba(0,104,255,.24),transparent 31%),
+    linear-gradient(180deg,#020816 0%,#03132c 43%,#020816 100%);
+}
+.topbar{
+  height:84px!important;
+  min-height:84px!important;
+  grid-template-columns:minmax(250px,1fr) auto auto!important;
+  padding:0 clamp(14px,3.2vw,48px)!important;
+  background:rgba(1,8,23,.94)!important;
+  border-bottom:1px solid rgba(24,139,255,.85)!important;
+  box-shadow:0 6px 34px rgba(0,91,255,.18)!important;
+  backdrop-filter:blur(18px) saturate(150%);
+}
+.brand-wrap{min-width:0!important;gap:12px!important}
+.site-logo-header{
+  width:64px!important;height:64px!important;padding:2px!important;
+  background:transparent!important;border-radius:14px!important;
+  box-shadow:none!important;filter:drop-shadow(0 0 16px rgba(0,139,255,.7))!important;
+}
+.brand{font-size:clamp(21px,2.35vw,31px)!important;letter-spacing:-1.3px!important}
+.brand span{color:#fff}.brand-copy .sub{font-size:10px!important;color:#9bb8e3!important}
+.main-nav{gap:2px!important}.nav-item{min-width:62px!important;height:60px!important;border-left:1px solid rgba(37,103,186,.25)!important;color:#a7bbdd!important}.nav-item b{font-size:19px!important;color:#73c3ff!important}.nav-item span{font-size:9px!important}.nav-item.active,.nav-item:hover{background:linear-gradient(180deg,#146dff,#0a43a7)!important;color:#fff!important;box-shadow:0 0 24px rgba(20,110,255,.35)!important}
+.headright{gap:7px!important}.language-picker{width:120px!important}.timezone-picker{width:98px!important}.clock-main{font-size:9px!important}
+main{max-width:1480px!important;padding:0 clamp(10px,2.4vw,38px) 28px!important}
+
+/* Hero: the actual athlete/logo artwork is now the site's background. */
+.hero-banner{
+  height:clamp(205px,22vw,285px)!important;
+  min-height:205px!important;
+  margin:0 0 0!important;
+  position:relative!important;
+  overflow:hidden!important;
+  border:0!important;
+  border-bottom:1px solid rgba(25,143,255,.9)!important;
+  border-radius:0 0 18px 18px!important;
+  background-image:url('/assets/ncaa-hero-athletes.png')!important;
+  background-size:cover!important;
+  background-position:center center!important;
+  background-repeat:no-repeat!important;
+  box-shadow:0 18px 55px rgba(0,58,150,.35)!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:center!important;
+}
+.hero-banner:before{
+  content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(1,7,20,.05) 0%,rgba(1,8,22,.03) 52%,rgba(1,8,22,.48) 100%),
+    linear-gradient(90deg,rgba(0,9,28,.18),transparent 25%,transparent 75%,rgba(0,9,28,.18));
+}
+.hero-overlay{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at center,transparent 42%,rgba(0,8,24,.24) 100%)}
+.hero-content{position:relative;z-index:3;text-align:center;margin-bottom:18px;text-shadow:0 3px 18px #000}
+.hero-kicker{font-size:11px;letter-spacing:2.8px;font-weight:900;color:#dcecff}
+.hero-title{font-size:clamp(18px,2.2vw,30px);font-weight:950;letter-spacing:1px;color:#fff}.hero-title span{color:#22bfff;padding:0 7px}
+.hero-subtitle{font-size:10px;letter-spacing:.6px;color:#c0d8f8;margin-top:5px}
+
+/* Make the lower interface read like the supplied dashboard. */
+.quick-strip{max-width:1200px!important;height:62px!important;margin:-1px auto 12px!important;border-color:#058dff!important;border-radius:0 0 13px 13px!important;background:rgba(3,17,45,.97)!important;box-shadow:0 9px 30px rgba(0,80,190,.2)!important}
+.sport-strip{margin:0 0 11px!important;gap:5px!important}
+.sport-tile{min-height:64px!important}
+.dashboard{grid-template-columns:245px minmax(0,1fr) 282px!important;gap:9px!important}
+.panel{background:linear-gradient(180deg,rgba(5,27,63,.98),rgba(2,14,34,.98))!important;border-color:#1255a8!important}
+.feed-heading{border-color:#155fb0!important;background:rgba(5,24,56,.98)!important}
+.event{grid-template-columns:102px minmax(0,1fr) 118px!important}
+.event:after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#0aa8ff,#125dff);opacity:.85}
+
+/* Keep hero artwork clean and proportionate on narrow devices. */
+@media(max-width:1150px){
+  .topbar{grid-template-columns:1fr auto!important}
+  .main-nav{display:none!important}
+  .dashboard{grid-template-columns:205px minmax(0,1fr)!important}
+  .right-sidebar{display:none!important}
+  .hero-banner{height:235px!important;background-position:center center!important}
+}
+@media(max-width:760px){
+  .topbar{height:auto!important;min-height:72px!important;grid-template-columns:1fr!important;padding:8px 12px!important}
+  .brand-wrap{width:100%!important}.site-logo-header{width:52px!important;height:52px!important}.brand{font-size:21px!important}.brand-copy .sub{display:none!important}
+  .headright{display:none!important}
+  .hero-banner{height:190px!important;min-height:190px!important;background-image:url('/assets/ncaa-hero-athletes-mobile.png')!important;background-size:cover!important;background-position:center center!important;border-radius:0 0 14px 14px!important}
+  .hero-content{margin-bottom:12px}.hero-kicker{font-size:8px;letter-spacing:2px}.hero-title{font-size:18px}.hero-subtitle{font-size:8px;max-width:90vw}
+  .quick-strip{height:54px!important;overflow-x:auto!important;justify-content:flex-start!important;padding:0 7px!important}.quick-strip div{min-width:142px}.quick-strip i{display:none!important}
+  .sport-strip{grid-template-columns:repeat(3,minmax(0,1fr))!important;overflow:hidden}
+  .sport-tile{min-height:62px!important}.sport-tile strong{font-size:9px!important}
+  .dashboard{display:block!important}.left-sidebar{display:grid!important;grid-template-columns:1fr 1fr;gap:7px}.left-sidebar .panel{margin:0}.feed-column{margin-top:9px}.event{grid-template-columns:62px minmax(0,1fr)!important}.event .badge{display:none!important}.event .teams{font-size:11px!important}.event .meta{font-size:7px!important}
+}
+@media(max-width:430px){
+  .brand{font-size:18px!important}.site-logo-header{width:46px!important;height:46px!important}
+  .hero-banner{height:170px!important;min-height:170px!important}.hero-content{margin-bottom:10px}.hero-title{font-size:16px}.hero-subtitle{font-size:7px}
+  .left-sidebar{grid-template-columns:1fr!important}.left-sidebar .panel{grid-column:auto!important}
+  .sport-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+[dir="rtl"] .hero-content{text-align:center}

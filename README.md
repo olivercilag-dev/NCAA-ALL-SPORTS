@@ -68,3 +68,6 @@ V7 fixes the ESPN scoreboard parser to tolerate optional fields returned as stri
 The Game Center is designed as a single information hub for each event: team profiles, logos, provider links, official-school/schedule search links, conference hub links, venue, UTC/local time, score/status, broadcasts, play-by-play, statistics, leaders, odds, win probability, news and raw provider data when the authorized/public source actually supplies them.
 
 Unavailable fields are shown as unavailable rather than fabricated. The project does not claim that one free public source contains every NCAA school or every sport. To add additional schools/conferences, add only verified public/authorized feeds or links permitted by their terms.
+
+## FINAL LOCKED UI
+The final UI uses a responsive athlete-and-logo hero artwork as the visual background of the main navigation/hero area, with the lower dashboard inspired by the approved sports-dashboard references. The implementation preserves the existing schedule, combined filters, timezone, multilingual, Game Center and data-engine features. Desktop, tablet and mobile breakpoints use dedicated artwork positioning/cropping so the hero remains proportionate.
