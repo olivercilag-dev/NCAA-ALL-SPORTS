@@ -32,19 +32,31 @@ ESPN_FEEDS = {
     "baseball": [("ESPN Baseball", "baseball", "college-baseball")],
     "softball": [("ESPN Softball", "softball", "college-softball")],
     "soccer": [
-        ("ESPN Men's Soccer", "soccer", "mens-college-soccer"),
-        ("ESPN Women's Soccer", "soccer", "womens-college-soccer")],
+        ("ESPN Men's Soccer", "soccer", "usa.ncaa"),
+        ("ESPN Women's Soccer", "soccer", "usa.w.ncaa")],
     "volleyball": [("ESPN Women's Volleyball", "volleyball", "womens-college-volleyball")],
     "ice_hockey": [
         ("ESPN Men's Hockey", "hockey", "mens-college-hockey"),
         ("ESPN Women's Hockey", "hockey", "womens-college-hockey")],
-    "field_hockey": [("ESPN Field Hockey", "field-hockey", "college-field-hockey")],
-    "lacrosse": [
-        ("ESPN Men's Lacrosse", "lacrosse", "college-mens-lacrosse"),
-        ("ESPN Women's Lacrosse", "lacrosse", "college-womens-lacrosse")],
-    "wrestling": [("ESPN Wrestling", "wrestling", "college-wrestling")],
-    "gymnastics": [("ESPN Gymnastics", "gymnastics", "womens-college-gymnastics")]
 }
+
+# These sports do not currently have a verified ESPN scoreboard league in this
+# adapter. They remain visible in the UI, but the engine will report them as
+# unavailable rather than inventing events.
+UNVERIFIED_ESPN = {
+    "field_hockey": "No verified ESPN NCAA scoreboard feed configured",
+    "lacrosse": "No verified ESPN NCAA scoreboard feed configured",
+    "wrestling": "No verified ESPN NCAA scoreboard feed configured",
+    "gymnastics": "No verified ESPN NCAA scoreboard feed configured",
+    "track_field": "No verified ESPN NCAA scoreboard feed configured",
+    "swimming_diving": "No verified ESPN NCAA scoreboard feed configured",
+    "cross_country": "No verified ESPN NCAA scoreboard feed configured",
+    "water_polo": "No verified ESPN NCAA scoreboard feed configured",
+    "rowing": "No verified ESPN NCAA scoreboard feed configured",
+    "golf": "No verified ESPN NCAA scoreboard feed configured",
+    "fencing": "No verified ESPN NCAA scoreboard feed configured",
+}
+
 
 
 def db():
@@ -102,30 +114,48 @@ def parse_time(v):
         return None
 
 
+def clean_team(v):
+    return " ".join(str(v or "").lower().strip().split())
+
 def event_id(e):
-    # Prefer upstream ID where available, but keep deterministic IDs for custom feeds.
-    upstream = e.get("upstream_id")
-    if upstream:
-        return hashlib.sha256((e["source"] + "|" + str(upstream)).encode()).hexdigest()[:24]
-    key = "|".join([e["sport"], e.get("start_utc", "")[:16], (e.get("home") or "").lower().strip(), (e.get("away") or "").lower().strip()])
-    return hashlib.sha256(key.encode()).hexdigest()[:24]
+    # Provider-independent canonical key so the same game from ESPN + an
+    # authorized official feed is stored as one event, not duplicates.
+    key = "|".join([
+        normalize_sport(e.get("sport")),
+        e.get("start_utc", "")[:19],
+        clean_team(e.get("home")),
+        clean_team(e.get("away")),
+        clean_team(e.get("competition")),
+    ])
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:24]
 
 
 def upsert_event(e, confidence=0.55):
     now = iso_now()
     with DB_LOCK:
+        existing = DB.execute("SELECT source,source_url,confidence FROM events WHERE id=?", (e["id"],)).fetchone()
+        source = e.get("source") or ""
+        source_url = e.get("source_url") or ""
+        conf = confidence
+        if existing:
+            old_sources = [x.strip() for x in (existing["source"] or "").split(" + ") if x.strip()]
+            if source and source not in old_sources:
+                old_sources.append(source)
+            source = " + ".join(old_sources)
+            source_url = source_url or existing["source_url"] or ""
+            conf = max(float(existing["confidence"] or 0), confidence)
         DB.execute("""INSERT INTO events
           (id,sport,start_utc,home,away,competition,conference,venue,status,source,source_url,confidence,updated_at,raw_hash)
           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           ON CONFLICT(id) DO UPDATE SET
-          start_utc=excluded.start_utc,home=excluded.home,away=excluded.away,
+          sport=excluded.sport,start_utc=excluded.start_utc,home=excluded.home,away=excluded.away,
           competition=excluded.competition,conference=excluded.conference,venue=excluded.venue,
           status=excluded.status,source=excluded.source,source_url=excluded.source_url,
-          confidence=MAX(events.confidence,excluded.confidence), updated_at=excluded.updated_at,
+          confidence=MAX(events.confidence,excluded.confidence),updated_at=excluded.updated_at,
           raw_hash=excluded.raw_hash""",
-          (e["id"], e["sport"], e["start_utc"], e.get("home"), e.get("away"), e.get("competition"),
-           e.get("conference"), e.get("venue"), e.get("status"), e.get("source"), e.get("source_url"),
-           confidence, now, e.get("raw_hash", "")))
+          (e["id"], normalize_sport(e["sport"]), e["start_utc"], e.get("home"), e.get("away"),
+           e.get("competition"), e.get("conference"), e.get("venue"), e.get("status"), source,
+           source_url, conf, now, e.get("raw_hash", "")))
 
 
 def fetch_json(url, api_key=""):
@@ -190,7 +220,7 @@ def parse_espn(payload, sport, source_name):
 def fetch_espn_feed(source_name, path_sport, league, date):
     url = f"https://site.api.espn.com/apis/site/v2/sports/{quote(path_sport)}/{quote(league)}/scoreboard?dates={date.strftime('%Y%m%d')}&limit=1000"
     payload = fetch_json(url)
-    return source_name, parse_espn(payload, normalize_sport(league), source_name), True
+    return source_name, parse_espn(payload, normalize_sport(path_sport), source_name), True
 
 
 def refresh_espn():
@@ -228,6 +258,10 @@ def refresh_espn():
             else:
                 msg = "; ".join(rec["errors"][:2]) or "No successful response"
                 set_source(source_name, False, msg)
+
+    for sport, message in UNVERIFIED_ESPN.items():
+        set_source(f"ESPN {sport.replace('_',' ').title()}", False, message)
+
     with DB_LOCK:
         DB.commit()
     reconcile()
@@ -275,11 +309,11 @@ def refresh_custom_sources():
 
 def reconcile():
     with DB_LOCK:
-        rows = DB.execute("""SELECT sport,start_utc,lower(trim(home)) h,lower(trim(away)) a,COUNT(DISTINCT source) n
-                             FROM events GROUP BY sport,start_utc,h,a""").fetchall()
+        rows = DB.execute("""SELECT id,source,confidence FROM events""").fetchall()
         for r in rows:
-            conf = min(0.99, 0.55 + 0.20 * max(0, r["n"] - 1))
-            DB.execute("""UPDATE events SET confidence=? WHERE sport=? AND start_utc=? AND lower(trim(home))=? AND lower(trim(away))=?""", (conf,r["sport"],r["start_utc"],r["h"],r["a"]))
+            n = len([x for x in (r["source"] or "").split(" + ") if x.strip()])
+            conf = min(0.99, max(float(r["confidence"] or 0), 0.55 + 0.20 * max(0, n - 1)))
+            DB.execute("UPDATE events SET confidence=? WHERE id=?", (conf, r["id"]))
         cutoff = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
         future = (datetime.now(timezone.utc) + timedelta(days=8)).isoformat()
         # Keep only the window the public UI/API can use. This prevents stale cache growth.

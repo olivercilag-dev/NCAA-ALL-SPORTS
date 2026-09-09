@@ -1,3 +1,11 @@
+# NCAA ALL SPORTS — V4
+
+Live chronological NCAA event dashboard.
+
+V4 normalizes ESPN/internal sport keys, stores the same event from multiple authorized sources under one canonical event key, keeps UTC times, excludes tennis, and never invents unavailable events.
+
+Deploy on Render with `python app/server.py`.
+
 # NCAA ALL SPORTS — LIVE BUILD v2
 
 Responsive multi-sport NCAA schedule feed for phone and PC.

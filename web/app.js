@@ -27,6 +27,16 @@ const SPORTS = {
   water_polo:"Water Polo",rowing:"Rowing",golf:"Golf",fencing:"Fencing"
 };
 
+const SPORT_ALIASES = {
+  college_football:"football", ncaaf:"football", american_football:"football",
+  mens_soccer:"soccer", womens_soccer:"soccer",
+  mens_college_basketball:"basketball", womens_college_basketball:"basketball", ncaab:"basketball",
+  womens_college_volleyball:"volleyball", mens_college_volleyball:"volleyball",
+  college_baseball:"baseball", college_softball:"softball",
+  mens_college_hockey:"ice_hockey", womens_college_hockey:"ice_hockey", hockey:"ice_hockey"
+};
+function canonicalSport(v){return SPORT_ALIASES[String(v||"").toLowerCase()] || String(v||"").toLowerCase();}
+
 let lang = localStorage.getItem("ncaaLang") || navigator.language.slice(0,2);
 if(!I18N[lang]) lang="en";
 let range="today", events=[];
@@ -145,7 +155,7 @@ async function load(){
     if(!response.ok) throw new Error("HTTP "+response.status);
     const data=await response.json();
     if(!Array.isArray(data)) throw new Error("Invalid API response");
-    events=data;render();
+    events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));render();
   }catch(error){
     console.error("NCAA API:",error);events=[];
     $("feed").innerHTML=`<div class="empty">${t("api")}<br><br><small>${error.message||"Unknown error"}</small></div>`;
