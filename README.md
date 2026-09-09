@@ -1,3 +1,7 @@
+# NCAA ALL SPORTS — FINAL
+
+Final release with polished Game Center, verified ESPN/public-source ingestion, multilingual UI, UTC chronological feed, and provider data sections.
+
 NCAA ALL SPORTS — V7
 
 # NCAA ALL SPORTS — V6
