@@ -9,4 +9,4 @@
 7. The application does not claim that NCAA, ESPN, a conference, or a college endorses it.
 8. Source attribution should be displayed where required by the provider.
 9. Conflicting reports should be treated as discrepancies rather than silently fabricated/guessed values.
-10. Tennis is intentionally excluded from this project.
+10. Tennis is intentionally excluded.

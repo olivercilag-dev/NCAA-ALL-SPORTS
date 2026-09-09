@@ -6,8 +6,6 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python app/server.py
     envVars:
-      - key: PORT
-        value: 10000
       - key: DATABASE_PATH
         value: data/ncaa.sqlite3
       - key: REFRESH_MINUTES

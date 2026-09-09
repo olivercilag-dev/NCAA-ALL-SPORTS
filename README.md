@@ -1,56 +1,50 @@
-# NCAA ALL SPORTS — FINAL BUILD
+# NCAA ALL SPORTS — LIVE BUILD
 
-This is the single final deployment package. It is designed for the Render Web Service used by the project.
+A responsive NCAA multi-sport chronological feed for phone and PC.
 
 ## Included
-- Responsive phone + PC web app
 - One chronological feed
-- UTC display
 - Yesterday / Today / Tomorrow / Next 7 Days
-- Baseball included
-- Tennis completely excluded
-- Sport-specific colors
+- UTC times
 - Search and sport filter
-- Event detail modal
-- 10 languages: Serbian, English, Spanish, French, German, Italian, Portuguese, Dutch, Turkish, Japanese
-- Language preference saved in browser
-- SQLite storage
-- Automatic refresh scheduler
-- Source status endpoint
-- Multi-source normalization and confidence scoring
-- Render-safe `PORT` handling
+- Event details
+- Sport colors
+- Baseball included
+- Tennis excluded
+- 11 languages with visible country flags
+- Hebrew with RTL layout
+- SQLite cache
+- `/api/health`, `/api/events`, `/api/sources`
+- Automatic background refresh
 
-## IMPORTANT: real data
-The application does NOT invent NCAA games. `data/seed.json` is empty.
+## Live data engine
+The backend contains adapters for ESPN public scoreboard endpoints for sports where those endpoints return data. It also supports additional public/licensed JSON feeds through environment variables.
 
-Real events appear after you configure permitted public/licensed feeds in Render Environment Variables:
-- NCAA_SCHEDULE_URL
-- ESPN_SCHEDULE_URL
-- OFFICIAL_SCHEDULE_URL
-and, if required, their API keys.
+The application never invents events. If a feed is unavailable or does not cover a sport, that sport can remain empty.
 
-The JSON adapter accepts common shapes such as:
-`{"events":[...]}`, `{"items":[...]}`, `{"games":[...]}` or a top-level list.
+Supported optional environment variables:
+- NCAA_SCHEDULE_URL / NCAA_API_KEY
+- OFFICIAL_SCHEDULE_URL / OFFICIAL_API_KEY
+- REFRESH_MINUTES
+- DATABASE_PATH
 
-Do not bypass login, CAPTCHA, paywalls, robots restrictions, anti-bot controls, or contractual/API restrictions. Do not redistribute data unless the source terms allow it.
+## Important
+A technically accessible public endpoint is not automatically a license to redistribute its data. Before public commercial use, confirm the applicable provider terms and attribution/redistribution rights. Do not bypass login, CAPTCHA, paywalls, robots restrictions, anti-bot systems or contractual/API restrictions.
 
 ## Render
-The included `render.yaml` uses:
+Start command:
 `python app/server.py`
 
-Render supplies the PORT environment variable. The server binds to `0.0.0.0:$PORT`, avoiding the invalid-port problem from the earlier deployment.
+Render supplies `PORT` automatically.
 
-If the GitHub repository is already connected:
-1. Replace the repository contents with this package.
-2. Commit the changes to `main`.
-3. In Render open the existing service.
-4. Trigger **Manual Deploy → Deploy latest commit**.
-5. Add allowed feed URLs/API keys under **Environment** when available.
+The free Render filesystem/database is not guaranteed to be persistent across all redeploy/restart scenarios. The live engine therefore refreshes from the upstream feeds on startup and on the configured interval.
 
-## Final-launch reality
-The software can be deployed now, but the public production dataset is only complete after the permitted live data feeds are configured and tested. The app intentionally shows no fabricated games while those feeds are absent.
+## Language flags
+The language selector uses flag image assets from Flagcdn. If an environment blocks that CDN, the language still works but the flag images may not display.
 
-## API
-- `/api/health`
-- `/api/events`
-- `/api/sources`
+## Launch checks
+1. Deploy latest commit.
+2. Open `/api/health`.
+3. Open `/api/sources`.
+4. Open `/api/events`.
+5. Open the home page and test the language selector.
