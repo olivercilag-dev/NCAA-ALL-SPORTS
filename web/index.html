@@ -22,8 +22,6 @@
     <button class="nav-item" data-jump="teams"><b>♙</b><span>Teams</span></button>
     <button class="nav-item" data-jump="conferences"><b>♟</b><span>Conferences</span></button>
     <button class="nav-item" data-jump="standings"><b>▥</b><span>Standings</span></button>
-    <button class="nav-item" data-jump="news"><b>★</b><span>News</span></button>
-    <button class="nav-item" data-jump="settings"><b>⚙</b><span>Settings</span></button>
   </nav>
   <div class="headright"><div id="lang" class="language-picker"></div><div id="tz" class="timezone-picker"></div><div id="clock"></div></div>
 </header>
@@ -33,31 +31,24 @@
 </div>
 
 <main id="home">
-  <section class="hero-banner" aria-label="NCAA All Sports athlete banner"><div class="hero-overlay"></div><div class="hero-vignette"></div></section>
-
-  <section class="quick-strip" aria-label="Quick access">
-    <div><b>↯</b><strong>LIVE SCORES</strong><small>Real-time updates</small></div><i></i>
-    <div><b>◉</b><strong>GAME CENTER</strong><small>Stats, play-by-play, more</small></div><i></i>
-    <div><b>▦</b><strong>FULL SCHEDULE</strong><small>All sports, all teams</small></div><i></i>
-    <div><b>♙</b><strong>TEAM PAGES</strong><small>Logos, rosters, links</small></div><i></i>
-    <div><b>♟</b><strong>CONFERENCES</strong><small>Standings & rankings</small></div><i></i>
-    <div><b>▤</b><strong>NEWS</strong><small>Latest updates</small></div>
-  </section>
+  <section class="hero-banner" aria-label="NCAA All Sports athlete banner"><div class="hero-overlay"></div><div class="hero-vignette"></div><div class="hero-caption"><span>ONE PLATFORM</span><b>ALL NCAA SPORTS</b><small>Scores • schedules • teams • conferences • Game Center</small></div></section>
 
   <section class="sport-strip" id="sportStrip" aria-label="Sports"></section>
 
   <section class="dashboard">
     <aside class="left-sidebar">
-      <div class="panel" id="settings"><div class="panel-title">◉ &nbsp;Time Zone</div><div id="tzSide"></div></div>
-      <div class="panel"><div class="panel-title">▣ &nbsp;Date</div><div class="mini-ranges" id="ranges"></div></div>
-      <div class="panel filter-panel">
-        <div class="panel-title">⌕ &nbsp;Smart Filters</div>
-        <input class="side-search" id="search" placeholder="Search team, sport, conference or venue">
-        <div class="time-filter-title">GAME TIME <small>(selected timezone)</small></div>
-        <div class="time-filter-row"><label>FROM<input id="timeFrom" type="time" aria-label="From"></label><label>TO<input id="timeTo" type="time" aria-label="To"></label></div>
-        <button id="clearFilters" class="clear-filters" type="button">↺ Clear all filters</button>
+      <div class="panel filter-panel" id="settings">
+        <div class="filter-head"><div class="panel-title">⌕ &nbsp;Filters</div><button id="clearFilters" class="clear-inline" type="button">Clear all</button></div>
+        <label class="field-label">Team / Sport / Conference / Venue<input class="side-search" id="search" placeholder="Search..." autocomplete="off"></label>
+        <div class="filter-block"><div class="field-label">Date</div><div class="mini-ranges" id="ranges"></div></div>
+        <div class="filter-row-two">
+          <label class="field-label">From<input id="timeFrom" type="time" aria-label="From"></label>
+          <label class="field-label">To<input id="timeTo" type="time" aria-label="To"></label>
+        </div>
+        <label class="field-label">Sport<select id="sport"></select></label>
+        <label class="field-label">Time Zone<select id="timezoneFilter"></select></label>
+        <div class="filter-block"><div class="field-label">Status</div><div class="status-pills"><label><input type="checkbox" id="statusScheduled" checked> Scheduled</label><label><input type="checkbox" id="statusLive" checked> Live</label><label><input type="checkbox" id="statusFinal" checked> Final</label></div></div>
       </div>
-      <div class="panel"><div class="panel-title">◈ &nbsp;Sport</div><select id="sport"></select></div>
     </aside>
 
     <section class="feed-column" id="schedule">
@@ -67,14 +58,12 @@
 
     <aside class="right-sidebar">
       <div class="featured panel" id="featured"></div>
-      <div class="panel quick-links" id="teams"><div class="panel-title">▣ &nbsp;Explore NCAA</div>
-        <a href="https://www.ncaa.com/" target="_blank" rel="noopener"><strong>NCAA</strong><span>Official site ›</span></a>
-        <a href="https://www.espn.com/college-sports/" target="_blank" rel="noopener"><strong>ESPN</strong><span>Scores & schedules ›</span></a>
-        <a href="https://www.ncaa.com/sports" target="_blank" rel="noopener"><strong>NCAA SPORTS</strong><span>All sports ›</span></a>
-        <a href="https://www.ncaa.com/standings" target="_blank" rel="noopener"><strong>STANDINGS</strong><span>Rankings ›</span></a>
-        <a href="https://www.ncaa.com/news" target="_blank" rel="noopener"><strong>NEWS</strong><span>Latest updates ›</span></a>
+      <div class="panel gamecenter-promo">
+        <div class="panel-title">◉ &nbsp;Game Center</div>
+        <h3>Everything about the game.</h3>
+        <p>Open one matchup to see the full available data: score, teams, venue, conference, stats, leaders, broadcast, news, play-by-play and provider links.</p>
+        <div class="gc-pills"><span>Score</span><span>Stats</span><span>Teams</span><span>News</span><span>Play-by-Play</span></div>
       </div>
-      <div class="panel right-brand"><img src="/assets/ncaa-all-sports-logo.png" alt="NCAA All Sports"><strong>NCAA ALL SPORTS</strong><small>ONE PLATFORM • ONE CHRONOLOGICAL FEED • UTC</small></div>
     </aside>
   </section>
 </main>

@@ -193,7 +193,7 @@ def upsert_event(e, confidence=0.55):
            json.dumps(e.get("notes") or [],ensure_ascii=False),e.get("home_logo") or "",e.get("away_logo") or ""))
 
 
-def fetch_json(url, api_key=""):
+def fetch_json(url, api_key="", timeout=20):
     p = urlparse(url)
     if p.scheme not in ("http", "https"):
         raise ValueError("Feed URL must use HTTP(S).")
@@ -201,7 +201,7 @@ def fetch_json(url, api_key=""):
     if api_key:
         headers["Authorization"] = "Bearer " + api_key
     req = Request(url, headers=headers)
-    with urlopen(req, timeout=20) as r:
+    with urlopen(req, timeout=timeout) as r:
         raw = r.read()
         if len(raw) > 12_000_000:
             raise ValueError("Feed response is too large")
@@ -526,11 +526,27 @@ class Handler(BaseHTTPRequestHandler):
             out=dict(row)
             try: out["links"]=json.loads(out.get("links_json") or "{}")
             except Exception: out["links"]={}
-            for key in ("broadcasts","notes"):
-                if not e.get("home_logo") and existing["home_logo"]: e["home_logo"]=existing["home_logo"]
-                if not e.get("away_logo") and existing["away_logo"]: e["away_logo"]=existing["away_logo"]
-                try: out[key]=json.loads(out.get(f"{key}_json") or "[]")
-                except Exception: out[key]=[]
+            # Decode stored arrays safely. Game Center must remain usable even
+            # when the live provider summary is temporarily unavailable.
+            for key in ("broadcasts", "notes"):
+                try:
+                    value = json.loads(out.get(f"{key}_json") or "[]")
+                    out[key] = value if isinstance(value, list) else []
+                except Exception:
+                    out[key] = []
+
+            # Always return a useful base Game Center payload from our local DB.
+            # Live ESPN enrichment below is optional and must never make the
+            # event page fail.
+            out["summary_available"] = False
+            out["summary_error"] = ""
+            out["summary"] = {}
+            out["team_profiles"] = []
+            if out.get("home") or out.get("away"):
+                out["team_profiles"] = [
+                    {"name": out.get("home") or "TBD", "home_away": "home", "logo": out.get("home_logo") or "", "rank": out.get("home_rank")},
+                    {"name": out.get("away") or "TBD", "home_away": "away", "logo": out.get("away_logo") or "", "rank": out.get("away_rank")}
+                ]
             if out.get("upstream_id") and "ESPN" in (out.get("source") or ""):
                 source_names=(out.get("source") or "").split(" + ")
                 feed=next((x for feeds in ESPN_FEEDS.values() for x in feeds if x[0] in source_names),None)
@@ -538,7 +554,7 @@ class Handler(BaseHTTPRequestHandler):
                     _,path_sport,league=feed
                     try:
                         summary_url=f"https://site.api.espn.com/apis/site/v2/sports/{quote(path_sport)}/{quote(league)}/summary?event={quote(str(out['upstream_id']))}"
-                        summary=fetch_json(summary_url)
+                        summary=fetch_json(summary_url, timeout=4)
                         out["summary_available"]=True
                         # Keep the useful parts of the live response, but only expose
                         # links that ESPN actually returned. Nothing is invented here.

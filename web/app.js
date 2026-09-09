@@ -48,16 +48,29 @@ function flag(c){return `<img class="flag" src="/flags/${LANGUAGES[c].flag}.svg"
 function setDirection(){document.documentElement.dir=lang==="he"?"rtl":"ltr";document.documentElement.lang=lang}
 function selectLanguage(c){lang=c;localStorage.setItem("ncaaLang",lang);setDirection();renderLanguagePicker();render()}
 function renderLanguagePicker(){const box=$("lang");if(!box)return;const current=LANGUAGES[lang];box.innerHTML=`<button class="lang-current" type="button" aria-expanded="false">${flag(lang)}<span>${current.name}</span><span class="lang-arrow">▾</span></button><div class="lang-menu">${Object.entries(LANGUAGES).map(([c,i])=>`<button class="lang-option ${c===lang?"selected":""}" type="button" data-lang="${c}">${flag(c)}<span>${i.name}</span></button>`).join("")}</div>`;const btn=box.querySelector(".lang-current");btn.onclick=()=>{box.classList.toggle("open");btn.setAttribute("aria-expanded",box.classList.contains("open"))};box.querySelectorAll(".lang-option").forEach(b=>b.onclick=()=>{selectLanguage(b.dataset.lang);box.classList.remove("open")});document.addEventListener("click",e=>{if(!box.contains(e.target))box.classList.remove("open")})}
-function renderTimezonePicker(){const box=$("tz");if(!box)return;const zones=zoneList();if(!zones.includes("UTC"))zones.unshift("UTC");if(!zones.includes(timezone))timezone="UTC";box.innerHTML=`<label class="tz-label" for="timezone">${esc(t("timezone"))}</label><select id="timezone" aria-label="${esc(t("timezone"))}">${zones.map(z=>`<option value="${esc(z)}" ${z===timezone?"selected":""}>${esc(zoneLabel(z))}</option>`).join("")}</select>`;$("timezone").onchange=e=>{timezone=e.target.value;localStorage.setItem("ncaaTimezone",timezone);render();clock()}}
+function renderTimezonePicker(){const box=$("tz");if(!box)return;const zones=zoneList();if(!zones.includes("UTC"))zones.unshift("UTC");if(!zones.includes(timezone))timezone="UTC";box.innerHTML=`<label class="tz-label" for="timezone">${esc(t("timezone"))}</label><select id="timezone" aria-label="${esc(t("timezone"))}">${zones.map(z=>`<option value="${esc(z)}" ${z===timezone?"selected":""}>${esc(zoneLabel(z))}</option>`).join("")}</select>`;$("timezone").onchange=e=>{timezone=e.target.value;localStorage.setItem("ncaaTimezone",timezone);if($("timezoneFilter"))$("timezoneFilter").value=timezone;render();clock()};if($("timezoneFilter"))$("timezoneFilter").value=timezone}
 function zoneTime(iso){return formatZone(iso,timezone,true)}
 function zoneHM(iso,tz=timezone){try{return new Intl.DateTimeFormat("en-GB",{timeZone:tz,hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(iso))}catch(_){return iso.slice(11,16)}}
 function officialSearchButton(team,kind){if(!team||team==="TBD")return"";const q=kind==="schedule"?`${team} official athletics schedule`:`${team} official athletics`;const u=`https://www.google.com/search?q=${encodeURIComponent(q)}`;return linkButton(u,kind==="schedule"?t("search_schedule"):t("search_official"))}
 function sportIcon(k){return ({football:"🏈",basketball:"🏀",soccer:"⚽",baseball:"⚾",volleyball:"🏐",ice_hockey:"🏒",softball:"🥎",golf:"⛳",lacrosse:"🥍",water_polo:"🌊",wrestling:"🤼",gymnastics:"🤸",track_field:"🏃",swimming_diving:"🏊",cross_country:"🏃",rowing:"🚣",fencing:"🤺",field_hockey:"🏑"}[k]||"◈")}
-function renderSportStrip(){const counts={};events.forEach(e=>{const k=canonicalSport(e.sport);if(k!=="tennis")counts[k]=(counts[k]||0)+1});const order=["football","basketball","soccer","baseball","volleyball","ice_hockey","golf","track_field","water_polo","lacrosse","softball","wrestling","gymnastics","field_hockey"];const keys=order.filter(k=>counts[k]).concat(Object.keys(counts).filter(k=>!order.includes(k)&&k!=="tennis"));$("sportStrip").innerHTML=`<button class="sport-tile active" data-sp=""><b>▦</b><strong>All Sports</strong><small>${events.length}</small></button>`+keys.map(k=>`<button class="sport-tile" data-sp="${k}"><b>${sportIcon(k)}</b><strong>${esc(SPORTS[k]||k)}</strong><small>${counts[k]}</small></button>`).join("");document.querySelectorAll(".sport-tile").forEach(b=>b.onclick=()=>{document.querySelectorAll(".sport-tile").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("sport").value=b.dataset.sp;render()})}
+function renderSportStrip(){const counts={};events.forEach(e=>{const k=canonicalSport(e.sport);if(k!=="tennis")counts[k]=(counts[k]||0)+1});const order=["football","basketball","soccer","baseball","volleyball","ice_hockey","softball","golf","track_field","swimming_diving","water_polo","lacrosse","wrestling","gymnastics","cross_country","rowing","fencing","field_hockey"];const selected=$("sport")?.value||"";const keys=order.filter(k=>SPORTS[k]);$("sportStrip").innerHTML=`<button class="sport-tile ${selected?"":"active"}" data-sp=""><b>▦</b><strong>All Sports</strong><small>${events.length} events</small></button>`+keys.map(k=>`<button class="sport-tile ${selected===k?"active":""}" data-sp="${k}"><b>${sportIcon(k)}</b><strong>${esc(SPORTS[k]||k)}</strong><small>${counts[k]||0} events</small></button>`).join("");document.querySelectorAll(".sport-tile").forEach(b=>b.onclick=()=>{$("sport").value=b.dataset.sp;render()})}
 function renderSideTimezone(){const box=$("tzSide");if(!box)return;box.innerHTML=`<div class="zone-current">${esc(zoneLabel(timezone))}</div><div class="zone-options"><label><input type="radio" name="sidezone" value="UTC" ${timezone==="UTC"?"checked":""}> UTC (default)</label><label><input type="radio" name="sidezone" value="America/New_York" ${timezone==="America/New_York"?"checked":""}> America/New_York (EDT)</label><label><input type="radio" name="sidezone" value="Europe/Belgrade" ${timezone==="Europe/Belgrade"?"checked":""}> Europe/Belgrade (CEST)</label><label><input type="radio" name="sidezone" value="Europe/London" ${timezone==="Europe/London"?"checked":""}> Europe/London (BST)</label><label><input type="radio" name="sidezone" value="Asia/Tokyo" ${timezone==="Asia/Tokyo"?"checked":""}> Asia/Tokyo (JST)</label></div><button class="more-zones" id="moreZones">Prikaži sve zone…</button>`;box.querySelectorAll("input").forEach(r=>r.onchange=()=>{timezone=r.value;localStorage.setItem("ncaaTimezone",timezone);renderTimezonePicker();renderSideTimezone();render();clock()});$("moreZones").onclick=()=>$("timezone").focus()}
 function renderFeatured(){const f=events.filter(e=>e.start_utc).slice().sort((a,b)=>new Date(a.start_utc)-new Date(b.start_utc))[0];if(!f){$("featured").innerHTML=`<div class="panel-title">★ &nbsp;Featured Match</div><div class="empty">No verified event.</div>`;return}const hs=f.home_score??"—",as=f.away_score??"—";$("featured").innerHTML=`<div class="panel-title">★ &nbsp;Featured Match <span class="live-dot">● LIVE</span></div><div class="featured-card"><div class="feature-sport">${sportIcon(f.sport)} ${esc(SPORTS[f.sport]||f.sport)}</div><div class="featured-match"><div><div class="feature-logo">${f.away_logo?`<img src="${esc(f.away_logo)}" alt="" loading="lazy">`:""}</div><b>${esc(f.away||"TBD")}</b></div><div class="feature-score">${hs} <span>:</span> ${as}</div><div><div class="feature-logo">${f.home_logo?`<img src="${esc(f.home_logo)}" alt="" loading="lazy">`:""}</div><b>${esc(f.home||"TBD")}</b></div></div><small>${esc(zoneTime(f.start_utc))} • ${esc(f.venue||"NCAA")}</small><button class="feature-btn">Open Game Center →</button></div>`;$("featured").querySelector(".feature-btn").onclick=()=>detail(f)}
 function updateDashboardMeta(list){const title=range==="today"?"DANAS":range==="yesterday"?"JUČE":range==="tomorrow"?"SUTRA":"SLEDEĆIH 7 DANA";$("feedTitle").textContent=title;$("feedMeta").textContent=`${new Date().toISOString().slice(0,10)} • ${list.length} ${t("events")} • ${zoneLabel(timezone)}`}
-function setup(){renderLanguagePicker();renderTimezonePicker();renderSideTimezone();$("ranges").innerHTML=[["yesterday","yesterday"],["today","today"],["tomorrow","tomorrow"],["next","next"]].map(([k,v])=>`<button data-r="${v}">${t(k)}</button>`).join("");document.querySelectorAll("#ranges button").forEach(b=>b.onclick=()=>{range=b.dataset.r;document.querySelectorAll("#ranges button").forEach(x=>x.classList.toggle("active",x===b));render()});$("search").oninput=render;$("timeFrom").onchange=e=>{timeFrom=e.target.value;render()};$("timeTo").onchange=e=>{timeTo=e.target.value;render()};$("clearFilters").onclick=()=>{timeFrom="";timeTo="";$("timeFrom").value="";$("timeTo").value="";$("search").value="";$("sport").value="";renderSportStrip();render()};$("sport").onchange=()=>{document.querySelectorAll(".sport-tile").forEach(x=>x.classList.toggle("active",x.dataset.sp===$("sport").value));render()};$("sort").onchange=render;$("close").onclick=()=>$("modal").classList.add("hidden");$("modal").addEventListener("click",e=>{if(e.target.id==="modal")$("modal").classList.add("hidden")});document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>{document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));b.classList.add("active");const id=b.dataset.jump;if(id==="schedule")$("schedule").scrollIntoView({behavior:"smooth",block:"start"});else if(id==="settings")$("settings").scrollIntoView({behavior:"smooth",block:"center"});else $("home").scrollIntoView({behavior:"smooth",block:"start"})})}
+function setup(){
+  renderLanguagePicker();renderTimezonePicker();
+  const zoneBox=$('timezoneFilter');
+  if(zoneBox){const zones=zoneList();zoneBox.innerHTML=zones.map(z=>`<option value="${esc(z)}" ${z===timezone?'selected':''}>${esc(zoneLabel(z))}</option>`).join('');zoneBox.onchange=e=>{timezone=e.target.value;localStorage.setItem('ncaaTimezone',timezone);render();clock()}}
+  $('ranges').innerHTML=[['yesterday','yesterday'],['today','today'],['tomorrow','tomorrow'],['next','next']].map(([k,v])=>`<button data-r="${v}">${t(k)}</button>`).join('');
+  document.querySelectorAll('#ranges button').forEach(b=>b.onclick=()=>{range=b.dataset.r;document.querySelectorAll('#ranges button').forEach(x=>x.classList.toggle('active',x===b));render()});
+  $('search').oninput=render;$('timeFrom').onchange=e=>{timeFrom=e.target.value;render()};$('timeTo').onchange=e=>{timeTo=e.target.value;render()};
+  ['statusScheduled','statusLive','statusFinal'].forEach(id=>$(id)?.addEventListener('change',render));
+  $('clearFilters').onclick=()=>{timeFrom='';timeTo='';$('timeFrom').value='';$('timeTo').value='';$('search').value='';$('sport').value='';['statusScheduled','statusLive','statusFinal'].forEach(id=>{if($(id))$(id).checked=true});renderSportStrip();render()};
+  $('sport').onchange=()=>{document.querySelectorAll('.sport-tile').forEach(x=>x.classList.toggle('active',x.dataset.sp===$('sport').value));render()};$('sort').onchange=render;
+  $('close').onclick=()=>closeGameCenter();$('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeGameCenter()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeGameCenter()});
+  document.querySelectorAll('.nav-item').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));b.classList.add('active');const id=b.dataset.jump;if(id==='schedule')$('schedule').scrollIntoView({behavior:'smooth',block:'start'});else $('home').scrollIntoView({behavior:'smooth',block:'start'})});
+}
+function closeGameCenter(){$('modal').classList.add('hidden');document.body.classList.remove('modal-open')}
 function applyTexts(){renderTimezonePicker();renderSideTimezone();$("sub").textContent=t("sub");$("search").placeholder=t("search");$("ranges").querySelectorAll("button").forEach(b=>b.textContent=t(b.dataset.r==="next"?"next":b.dataset.r));const s=$("sport").value;$("sport").innerHTML=`<option value="">${t("all")}</option>`+Object.entries(SPORTS).filter(([k])=>k!=="tennis").map(([k,v])=>`<option value="${k}">${v}</option>`).join("");$("sport").value=s}
 function schoolSearchUrl(team){
   if(!team||team==='TBD') return '#';
@@ -76,48 +89,47 @@ function render(){
   const base=new Date(todayKey+'T00:00:00Z');
   const offset=range==='yesterday'?-1:range==='tomorrow'?1:0;
   let days=[];
-  if(range==='next'){
-    for(let i=1;i<=7;i++){const d=new Date(base);d.setUTCDate(d.getUTCDate()+i);days.push(dayKey(d))}
-  }else{
-    const d=new Date(base);d.setUTCDate(d.getUTCDate()+offset);days=[dayKey(d)]
-  }
-  const q=($('search').value||'').toLowerCase(),sp=$('sport').value;
+  if(range==='next'){for(let i=1;i<=7;i++){const d=new Date(base);d.setUTCDate(d.getUTCDate()+i);days.push(dayKey(d))}}
+  else{const d=new Date(base);d.setUTCDate(d.getUTCDate()+offset);days=[dayKey(d)]}
+  const q=($('search').value||'').trim().toLowerCase();
+  const sp=$('sport').value;
+  const allow=new Set();
+  if($('statusScheduled')?.checked!==false)allow.add('scheduled');
+  if($('statusLive')?.checked!==false)allow.add('live');
+  if($('statusFinal')?.checked!==false)allow.add('final');
   let list=events.filter(e=>{
     if(!e.start_utc||!days.includes(localDateKey(e.start_utc,timezone)))return false;
     if(sp&&e.sport!==sp)return false;
+    const st=String(e.status||'scheduled').toLowerCase();
+    if(!allow.has(st) && !(!st && allow.has('scheduled')))return false;
     const hm=zoneHM(e.start_utc);
     if(timeFrom&&hm<timeFrom)return false;
     if(timeTo&&hm>timeTo)return false;
-    return JSON.stringify(e).toLowerCase().includes(q)
+    return !q || JSON.stringify(e).toLowerCase().includes(q);
   });
-  if($('sort')?.value==='Start Time (Latest)'||$('sort')?.value==='Najkasnije prvo') list.sort((a,b)=>new Date(b.start_utc)-new Date(a.start_utc));
+  if($('sort')?.value==='Start Time (Latest)')list.sort((a,b)=>new Date(b.start_utc)-new Date(a.start_utc));
   else list.sort((a,b)=>new Date(a.start_utc)-new Date(b.start_utc));
   $('feed').innerHTML='';
   updateDashboardMeta(list);renderSportStrip();renderFeatured();
-  if(!list.length){$('feed').innerHTML=`<div class="empty">${t('empty')}</div>`;return}
+  if(!list.length){$('feed').innerHTML=`<div class="empty"><strong>${t('empty')}</strong><small>Try another date, sport or time range.</small></div>`;return}
   for(const day of days){
-    const arr=list.filter(e=>localDateKey(e.start_utc,timezone)===day);
-    if(!arr.length)continue;
-    const h=document.createElement('div');h.className='day';h.textContent=`${day} • ${arr.length} ${t('events')} • ${zoneLabel(timezone)}`;$('feed').appendChild(h);
+    const arr=list.filter(e=>localDateKey(e.start_utc,timezone)===day);if(!arr.length)continue;
+    const h=document.createElement('div');h.className='day';h.innerHTML=`<span>${esc(day)}</span><small>${arr.length} ${esc(t('events'))}</small>`;$('feed').appendChild(h);
     arr.forEach(e=>{
       const card=document.createElement('article');card.className='event';card.style.setProperty('--event-color',e.color||'#1597ff');
-      const score=(e.home_score??'')!==''||(e.away_score??'')!==''?`<span class="mini-score">${esc(e.home_score??'—')} : ${esc(e.away_score??'—')}</span>`:'';
-      const local=zoneTime(e.start_utc);const utc=e.start_utc.replace('T',' ').replace('Z',' UTC');
+      const hasScore=(e.home_score??'')!==''||(e.away_score??'')!=='';
+      const score=hasScore?`${esc(e.home_score??'—')} : ${esc(e.away_score??'—')}`:'—';
+      const local=zoneTime(e.start_utc);
       const logo=(url,name,side)=>url?`<a class="team-logo-link feed-logo-link" href="${esc(schoolSearchUrl(name))}" target="_blank" rel="noopener noreferrer" title="Open ${esc(name||'team')} official search" onclick="event.stopPropagation()"><img class="event-team-logo" src="${esc(url)}" alt="${esc(name||'')}" loading="lazy" onerror="this.style.display='none'"></a>`:`<a class="team-logo-link feed-logo-link placeholder" href="${esc(schoolSearchUrl(name))}" target="_blank" rel="noopener noreferrer" title="Open ${esc(name||'team')} official search" onclick="event.stopPropagation()">${side}</a>`;
-      card.innerHTML=`
-        <div class="time"><strong>${esc(local.slice(12,17))}</strong><small>${esc(zoneLabel(timezone))}</small><div class="utc-mini">${esc(utc.slice(11,16))} UTC</div></div>
-        <div class="matchup">
-          <div class="team-line">
-            <span class="team-side away-side">${logo(e.away_logo,e.away,'A')}<b>${esc(e.away||'TBD')}</b></span>
-            <span class="vs">VS</span>
-            <span class="team-side home-side"><b>${esc(e.home||'TBD')}</b>${logo(e.home_logo,e.home,'H')}</span>${score}
-          </div>
-          <div class="meta">${esc(SPORTS[e.sport]||e.sport)} • ${esc(e.conference||e.competition||'NCAA')}${e.venue?' • '+esc(e.venue):''}</div>
-          ${providerMark(e.source)}
-        </div>
-        <div class="badge"><span class="status">${esc(e.status||t('scheduled'))}</span><small>${t('details')} ↗</small></div>`;
-      card.onclick=()=>detail(e);$('feed').appendChild(card)
-    })
+      card.innerHTML=`<div class="event-time"><strong>${esc(local.slice(12,17))}</strong><small>${esc(zoneLabel(timezone))}</small></div>
+        <div class="event-sport"><span>${sportIcon(e.sport)}</span><small>${esc(SPORTS[e.sport]||e.sport)}</small></div>
+        <div class="event-match"><div class="team-row"><div class="team-name">${logo(e.away_logo,e.away,'A')}<b>${esc(e.away||'TBD')}</b></div><span class="row-score">${score}</span></div>
+          <div class="team-row"><div class="team-name">${logo(e.home_logo,e.home,'H')}<b>${esc(e.home||'TBD')}</b></div><span class="row-status">${esc(e.status||t('scheduled'))}</span></div></div>
+        <button class="game-center-btn" type="button">${esc(t('details'))}<span>→</span></button>`;
+      card.querySelector('.game-center-btn').onclick=ev=>{ev.stopPropagation();detail(e)};
+      card.onclick=()=>detail(e);
+      $('feed').appendChild(card);
+    });
   }
 }
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
@@ -159,11 +171,19 @@ function renderNews(v){if(!Array.isArray(v)||!v.length)return"";return `<div cla
 async function detail(e){
   const d=$("detail");
   d.innerHTML=`<div class="detail-loading">${t("loading")}</div>`;
-  $("modal").classList.remove("hidden");
+  $("modal").classList.remove("hidden");document.body.classList.add("modal-open");
   try{
-    const r=await fetch("/api/event/"+encodeURIComponent(e.id),{cache:"no-store"});
-    const x=r.ok?await r.json():e;
-    if(!r.ok)throw new Error(x.error||"HTTP "+r.status);
+    // Local schedule data is always the fallback. Provider enrichment is optional.
+    let x={...e,summary_available:false,summary:{},team_profiles:[]};
+    try{
+      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),7000);
+      const r=await fetch("/api/event/"+encodeURIComponent(e.id),{cache:"no-store",headers:{Accept:"application/json"},signal:controller.signal});
+      clearTimeout(timer);
+      if(r.ok){const remote=await r.json();if(remote&&typeof remote==='object')x={...x,...remote};}
+      else x.summary_error="Game data service returned HTTP "+r.status;
+    }catch(providerError){x.summary_error=providerError?.name==='AbortError'?"Provider response timed out":"Provider enrichment unavailable";}
+    x.home_logo=x.home_logo||e.home_logo||"";
+    x.away_logo=x.away_logo||e.away_logo||"";
 
     const links=x.links||{}, seen=new Set(), buttons=[];
     for(const [k,u] of Object.entries(links)){
@@ -257,9 +277,11 @@ async function detail(e){
     const local=formatZone(x.start_utc,timezone,true);
     const utc=x.start_utc||"TBD";
 
+    const providerNotice=x.summary_error?`<div class="gc-provider-notice"><span>i</span><div><strong>Game Center is available</strong><small>Live provider enrichment is temporarily unavailable. Verified schedule data remains available below.</small></div></div>`:"";
     d.innerHTML=`<div class="gc-head">
       <div><div class="eyebrow">${esc(t("details"))}</div><h2>${esc(x.home||"TBD")} <span>vs</span> ${esc(x.away||"TBD")}</h2><div class="gc-status">${esc(x.status||t("scheduled"))}</div></div>${score}
     </div>
+    ${providerNotice}
     ${teamSection}
     <div class="gc-grid"><div class="gc-main">
       <div class="info-grid">

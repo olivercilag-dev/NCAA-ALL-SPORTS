@@ -1,18 +1,11 @@
-# NCAA ALL SPORTS — PRO UI FINAL
+# NCAA ALL SPORTS — Simplified Pro UI
 
-This build keeps the existing data engine and Game Center while replacing the visual layer with the approved premium sports-dashboard direction.
+This build locks the visual direction around three principles:
 
-## Visual system
-- Athlete montage + central NCAA ALL SPORTS identity in the main hero.
-- Dark navy / electric-blue professional sports portal aesthetic.
-- Compact top navigation and UTC/time-zone controls.
-- Quick-action strip, sport selector tiles, three-column dashboard.
-- Left-side combined filters; central schedule; right-side featured match and quick links.
-- Event rows include provider team logos when available.
-- Responsive layouts for desktop, laptop, tablet and mobile.
+1. **The homepage is simple:** large athlete hero, sport navigation, clean filters, and a compact schedule.
+2. **Match rows show only what users need:** time, sport, school/team logos, team names, score/status, and a clear **Game Center** action.
+3. **Game Center is the information destination:** the selected game opens into the full available dataset, including team profiles, logos, competition/conference, venue, score/status, broadcasts, links, statistics, leaders, play-by-play, news, odds/win probability when supplied, and a data-availability view.
 
-## Filters
-Sport + date + time From/To + timezone + search are combined. Clear Filters resets the full filter state.
+Game Center always starts from the verified local event payload. Optional provider enrichment is attempted with a timeout, but a provider/API outage cannot prevent the Game Center from opening.
 
-## Data/legal
-The build does not fabricate event, team, school or provider links. Direct provider/official links are used only when supplied by an authorized source; otherwise public search links are clearly labeled. Tennis remains excluded; baseball remains included.
+The hero uses the expanded multi-sport athlete artwork and is responsive across desktop, tablet and mobile layouts.
