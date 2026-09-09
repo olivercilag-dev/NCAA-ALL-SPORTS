@@ -1,6 +1,6 @@
 const I18N = {
-  en:{sub:"All NCAA events • One chronological feed • UTC",yesterday:"YESTERDAY",today:"TODAY",tomorrow:"TOMORROW",next:"NEXT 7 DAYS",search:"Search team, sport, conference or venue",all:"All sports",events:"events",empty:"No verified events in this period.",loading:"Loading NCAA schedule…",api:"Data service is unavailable",sources:"Sources",confidence:"Data confidence",scheduled:"Scheduled",close:"Close",sport:"Sport",competition:"Competition / Conference",venue:"Venue",open:"open source"},
-  sr:{sub:"Svi NCAA događaji • Jedan hronološki feed • UTC",yesterday:"JUČE",today:"DANAS",tomorrow:"SUTRA",next:"SLEDEĆIH 7 DANA",search:"Pretraži tim, sport, konferenciju ili mesto",all:"Svi sportovi",events:"događaja",empty:"Nema potvrđenih događaja u ovom periodu.",loading:"Učitavanje NCAA rasporeda…",api:"Servis podataka nije dostupan",sources:"Izvori",confidence:"Pouzdanost podataka",scheduled:"Zakazano",close:"Zatvori",sport:"Sport",competition:"Takmičenje / Konferencija",venue:"Mesto",open:"otvori izvor"},
+  en:{sub:"All NCAA events • One chronological feed • UTC",yesterday:"YESTERDAY",today:"TODAY",tomorrow:"TOMORROW",next:"NEXT 7 DAYS",search:"Search team, sport, conference or venue",all:"All sports",events:"events",empty:"No verified events in this period.",loading:"Loading NCAA schedule…",api:"Data service is unavailable",sources:"Sources",confidence:"Data confidence",scheduled:"Scheduled",close:"Close",sport:"Sport",competition:"Competition / Conference",venue:"Venue",open:"open source",details:"Game details",links:"Game links",playbyplay:"Play-by-Play",gamecast:"Gamecast",summary:"Summary",score:"Score",broadcast:"Broadcast",notes:"Notes",live:"Live data",no_link:"No verified provider link available yet"},
+  sr:{sub:"Svi NCAA događaji • Jedan hronološki feed • UTC",yesterday:"JUČE",today:"DANAS",tomorrow:"SUTRA",next:"SLEDEĆIH 7 DANA",search:"Pretraži tim, sport, konferenciju ili mesto",all:"Svi sportovi",events:"događaja",empty:"Nema potvrđenih događaja u ovom periodu.",loading:"Učitavanje NCAA rasporeda…",api:"Servis podataka nije dostupan",sources:"Izvori",confidence:"Pouzdanost podataka",scheduled:"Zakazano",close:"Zatvori",sport:"Sport",competition:"Takmičenje / Konferencija",venue:"Mesto",open:"otvori izvor",details:"Detalji utakmice",links:"Linkovi utakmice",playbyplay:"Play-by-Play",gamecast:"Gamecast",summary:"Sažetak",score:"Rezultat",broadcast:"Prenos",notes:"Napomene",live:"Podaci uživo",no_link:"Još nema potvrđenog linka provajdera"},
   es:{sub:"Todos los eventos NCAA • Un feed cronológico • UTC",yesterday:"AYER",today:"HOY",tomorrow:"MAÑANA",next:"PRÓXIMOS 7 DÍAS",search:"Buscar equipo, deporte, conferencia o sede",all:"Todos los deportes",events:"eventos",empty:"No hay eventos verificados en este periodo.",loading:"Cargando calendario NCAA…",api:"El servicio de datos no está disponible",sources:"Fuentes",confidence:"Confianza de datos",scheduled:"Programado",close:"Cerrar",sport:"Deporte",competition:"Competición / Conferencia",venue:"Sede",open:"abrir fuente"},
   fr:{sub:"Tous les événements NCAA • Un fil chronologique • UTC",yesterday:"HIER",today:"AUJOURD'HUI",tomorrow:"DEMAIN",next:"7 PROCHAINS JOURS",search:"Rechercher équipe, sport, conférence ou lieu",all:"Tous les sports",events:"événements",empty:"Aucun événement vérifié pour cette période.",loading:"Chargement du calendrier NCAA…",api:"Le service de données n'est pas disponible",sources:"Sources",confidence:"Fiabilité des données",scheduled:"Programmé",close:"Fermer",sport:"Sport",competition:"Compétition / Conférence",venue:"Lieu",open:"ouvrir la source"},
   de:{sub:"Alle NCAA-Veranstaltungen • Ein chronologischer Feed • UTC",yesterday:"GESTERN",today:"HEUTE",tomorrow:"MORGEN",next:"NÄCHSTE 7 TAGE",search:"Team, Sport, Konferenz oder Ort suchen",all:"Alle Sportarten",events:"Veranstaltungen",empty:"Keine verifizierten Veranstaltungen in diesem Zeitraum.",loading:"NCAA-Spielplan wird geladen…",api:"Datendienst ist nicht verfügbar",sources:"Quellen",confidence:"Datenvertrauen",scheduled:"Geplant",close:"Schließen",sport:"Sport",competition:"Wettbewerb / Konferenz",venue:"Ort",open:"Quelle öffnen"},
@@ -138,15 +138,30 @@ function render(){
   }
 }
 
-function detail(e){
-  $("detail").innerHTML=`<h2>${e.home||"TBD"} vs ${e.away||"TBD"}</h2>
-    <div class="row"><div class="label">UTC</div>${e.start_utc||"TBD"}</div>
-    <div class="row"><div class="label">${t("sport")}</div>${SPORTS[e.sport]||e.sport||"TBD"}</div>
-    <div class="row"><div class="label">${t("competition")}</div>${e.competition||"NCAA"}${e.conference?" / "+e.conference:""}</div>
-    <div class="row"><div class="label">${t("venue")}</div>${e.venue||"TBD"}</div>
-    <div class="row"><div class="label">${t("confidence")}</div>${Math.round((e.confidence||0)*100)}%</div>
-    <div class="row"><div class="label">${t("sources")}</div>${e.source||"—"}${e.source_url?` — <a href="${e.source_url}" target="_blank" rel="noopener">${t("open")}</a>`:""}</div>`;
-  $("modal").classList.remove("hidden");
+async function detail(e){
+  const d=$("detail"); d.innerHTML=`<div class="detail-loading">${t("loading")}</div>`; $("modal").classList.remove("hidden");
+  try{
+    const r=await fetch("/api/event/"+encodeURIComponent(e.id),{cache:"no-store"}), x=r.ok?await r.json():e, links=x.links||{}, seen=new Set(), buttons=[];
+    const preferred=[["pbp",t("playbyplay")],["play-by-play",t("playbyplay")],["gamecast",t("gamecast")],["summary",t("summary")],["boxscore","Box Score"],["gameinfo","Game Info"],["highlights","Highlights"]];
+    for(const [k,label] of preferred) if(links[k]&&!seen.has(links[k])){seen.add(links[k]);buttons.push(`<a class="detail-link" href="${links[k]}" target="_blank" rel="noopener noreferrer">${label} ↗</a>`)}
+    if(x.source_url&&!seen.has(x.source_url)) buttons.push(`<a class="detail-link" href="${x.source_url}" target="_blank" rel="noopener noreferrer">${t("open")} ↗</a>`);
+    const hasScore=(x.home_score??"")!==""||(x.away_score??"")!=="";
+    const score=hasScore?`<div class="scoreline"><span>${x.home_score??"—"}</span><b>:</b><span>${x.away_score??"—"}</span></div>`:"";
+    const broadcasts=(x.broadcasts||[]).length?`<div class="row"><div class="label">${t("broadcast")}</div>${x.broadcasts.join(" • ")}</div>`:"";
+    const notes=(x.notes||[]).length?`<div class="row"><div class="label">${t("notes")}</div>${x.notes.map(n=>`<div>${n}</div>`).join("")}</div>`:"";
+    let live="";
+    if(x.summary_available&&x.summary){
+      const plays=Array.isArray(x.summary.plays)?x.summary.plays:[];
+      live=`<div class="live-block"><h3>${t("live")}</h3>${plays.length?`<div class="play-count">${plays.length} play-by-play records</div><div class="plays">${plays.slice(-100).reverse().map(p=>`<div class="play"><span>${p.period?.displayValue||""} ${p.clock?.displayValue||""}</span><strong>${p.text||p.shortText||p.type?.text||"Play"}</strong></div>`).join("")}</div>`:`<div class="muted">${t("no_link")}</div>`}</div>`;
+    }
+    d.innerHTML=`<h2>${x.home||"TBD"} vs ${x.away||"TBD"}</h2>${score}
+      <div class="row"><div class="label">UTC</div>${x.start_utc||"TBD"}</div>
+      <div class="row"><div class="label">${t("sport")}</div>${SPORTS[x.sport]||x.sport||"TBD"}</div>
+      <div class="row"><div class="label">${t("competition")}</div>${x.competition||"NCAA"}${x.conference?" / "+x.conference:""}</div>
+      <div class="row"><div class="label">${t("venue")}</div>${x.venue||"TBD"}</div>
+      <div class="row"><div class="label">${t("confidence")}</div>${Math.round((x.confidence||0)*100)}%</div>${broadcasts}${notes}
+      <div class="detail-links"><h3>${t("links")}</h3>${buttons.length?buttons.join(""):`<span class="muted">${t("no_link")}</span>`}</div>${live}`;
+  }catch(err){d.innerHTML=`<h2>${e.home||"TBD"} vs ${e.away||"TBD"}</h2><div class="empty">${err.message||"Unable to load event details."}</div>`}
 }
 
 async function load(){

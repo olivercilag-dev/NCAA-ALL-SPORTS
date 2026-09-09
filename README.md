@@ -1,3 +1,5 @@
+# NCAA ALL SPORTS — V6
+
 # NCAA ALL SPORTS — V4
 
 Live chronological NCAA event dashboard.
@@ -43,3 +45,6 @@ Start: `python app/server.py`
 3. `/api/stats`
 4. `/api/events`
 5. Home page + language selector
+
+
+V6 adds verified official-school source support for public/authorized JSON and iCalendar feeds, preserves official school/schedule/event links, and exposes provider PBP/Gamecast/Summary/Box Score links when supplied. No source URL is fabricated and access controls are not bypassed.

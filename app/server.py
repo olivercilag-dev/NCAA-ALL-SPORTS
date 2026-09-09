@@ -68,11 +68,24 @@ def db():
         id TEXT PRIMARY KEY, sport TEXT NOT NULL, start_utc TEXT NOT NULL,
         home TEXT, away TEXT, competition TEXT, conference TEXT, venue TEXT,
         status TEXT, source TEXT, source_url TEXT, confidence REAL DEFAULT 0,
-        updated_at TEXT NOT NULL, raw_hash TEXT
+        updated_at TEXT NOT NULL, raw_hash TEXT,
+        upstream_id TEXT, links_json TEXT DEFAULT '{}',
+        home_score TEXT, away_score TEXT, home_rank TEXT, away_rank TEXT,
+        broadcasts_json TEXT DEFAULT '[]', notes_json TEXT DEFAULT '[]' 
     )""")
     c.execute("""CREATE TABLE IF NOT EXISTS source_status(
         source TEXT PRIMARY KEY, ok INTEGER, message TEXT, checked_at TEXT
     )""")
+    # Non-destructive migration for V1-V4 databases.
+    existing_cols = {row[1] for row in c.execute("PRAGMA table_info(events)").fetchall()}
+    for col, typ in [
+        ("upstream_id","TEXT"),("links_json","TEXT DEFAULT '{}'"),
+        ("home_score","TEXT"),("away_score","TEXT"),("home_rank","TEXT"),("away_rank","TEXT"),
+        ("broadcasts_json","TEXT DEFAULT '[]'"),("notes_json","TEXT DEFAULT '[]'")
+    ]:
+        if col not in existing_cols:
+            c.execute(f"ALTER TABLE events ADD COLUMN {col} {typ}")
+
     # Older builds used fake SEED rows. Never expose them on the live site.
     c.execute("DELETE FROM events WHERE UPPER(COALESCE(source,''))='SEED'")
     c.commit()
@@ -133,29 +146,48 @@ def event_id(e):
 def upsert_event(e, confidence=0.55):
     now = iso_now()
     with DB_LOCK:
-        existing = DB.execute("SELECT source,source_url,confidence FROM events WHERE id=?", (e["id"],)).fetchone()
-        source = e.get("source") or ""
-        source_url = e.get("source_url") or ""
-        conf = confidence
+        existing = DB.execute(
+            "SELECT source,source_url,confidence,upstream_id,links_json,home_score,away_score,home_rank,away_rank,broadcasts_json,notes_json FROM events WHERE id=?",
+            (e["id"],)
+        ).fetchone()
+        source=e.get("source") or ""; source_url=e.get("source_url") or ""; links=e.get("links") or {}; conf=confidence
         if existing:
-            old_sources = [x.strip() for x in (existing["source"] or "").split(" + ") if x.strip()]
-            if source and source not in old_sources:
-                old_sources.append(source)
-            source = " + ".join(old_sources)
-            source_url = source_url or existing["source_url"] or ""
-            conf = max(float(existing["confidence"] or 0), confidence)
+            old_sources=[x.strip() for x in (existing["source"] or "").split(" + ") if x.strip()]
+            if source and source not in old_sources: old_sources.append(source)
+            source=" + ".join(old_sources); source_url=source_url or existing["source_url"] or ""
+            conf=max(float(existing["confidence"] or 0),confidence)
+            try: old_links=json.loads(existing["links_json"] or "{}")
+            except Exception: old_links={}
+            if not isinstance(old_links,dict): old_links={}
+            if isinstance(links,dict):
+                for k,v in links.items():
+                    if v and k not in old_links: old_links[k]=v
+            links=old_links
+            for key in ("upstream_id","home_score","away_score","home_rank","away_rank"):
+                if not e.get(key) and existing[key]: e[key]=existing[key]
+            for key in ("broadcasts","notes"):
+                if not e.get(key):
+                    try: e[key]=json.loads(existing[f"{key}_json"] or "[]")
+                    except Exception: e[key]=[]
         DB.execute("""INSERT INTO events
-          (id,sport,start_utc,home,away,competition,conference,venue,status,source,source_url,confidence,updated_at,raw_hash)
-          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          (id,sport,start_utc,home,away,competition,conference,venue,status,source,source_url,confidence,updated_at,raw_hash,
+           upstream_id,links_json,home_score,away_score,home_rank,away_rank,broadcasts_json,notes_json)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           ON CONFLICT(id) DO UPDATE SET
           sport=excluded.sport,start_utc=excluded.start_utc,home=excluded.home,away=excluded.away,
           competition=excluded.competition,conference=excluded.conference,venue=excluded.venue,
           status=excluded.status,source=excluded.source,source_url=excluded.source_url,
           confidence=MAX(events.confidence,excluded.confidence),updated_at=excluded.updated_at,
-          raw_hash=excluded.raw_hash""",
-          (e["id"], normalize_sport(e["sport"]), e["start_utc"], e.get("home"), e.get("away"),
-           e.get("competition"), e.get("conference"), e.get("venue"), e.get("status"), source,
-           source_url, conf, now, e.get("raw_hash", "")))
+          raw_hash=excluded.raw_hash,upstream_id=COALESCE(excluded.upstream_id,events.upstream_id),
+          links_json=excluded.links_json,home_score=excluded.home_score,away_score=excluded.away_score,
+          home_rank=excluded.home_rank,away_rank=excluded.away_rank,broadcasts_json=excluded.broadcasts_json,
+          notes_json=excluded.notes_json""",
+          (e["id"],normalize_sport(e["sport"]),e["start_utc"],e.get("home"),e.get("away"),
+           e.get("competition"),e.get("conference"),e.get("venue"),e.get("status"),source,source_url,
+           conf,now,e.get("raw_hash",""),e.get("upstream_id"),json.dumps(links,ensure_ascii=False),
+           e.get("home_score"),e.get("away_score"),e.get("home_rank"),e.get("away_rank"),
+           json.dumps(e.get("broadcasts") or [],ensure_ascii=False),
+           json.dumps(e.get("notes") or [],ensure_ascii=False)))
 
 
 def fetch_json(url, api_key=""):
@@ -206,10 +238,35 @@ def parse_espn(payload, sport, source_name):
         league = ((ev.get("season") or {}).get("displayName") or ((payload.get("leagues") or [{}])[0].get("name") if payload.get("leagues") else None) or "NCAA")
         links = ev.get("links") or []
         source_url = next((x.get("href") for x in links if x.get("href")), "")
+        link_map={}
+        for link in links:
+            href=link.get("href"); rels=link.get("rel") or []
+            if isinstance(rels,str): rels=[rels]
+            if href:
+                for rel in rels: link_map[str(rel).lower()]=href
+        home_score=away_score=home_rank=away_rank=None
+        for c in competitors:
+            if c.get("homeAway")=="home":
+                home_score=str(c.get("score")) if c.get("score") is not None else None
+                home_rank=str(c.get("rank")) if c.get("rank") is not None else None
+            elif c.get("homeAway")=="away":
+                away_score=str(c.get("score")) if c.get("score") is not None else None
+                away_rank=str(c.get("rank")) if c.get("rank") is not None else None
+        broadcasts=[]
+        for b in (comp.get("broadcasts") or []):
+            for n in (b.get("names") or []):
+                name=n.get("shortName") or n.get("name")
+                if name and name not in broadcasts: broadcasts.append(name)
+        notes=[]
+        for n in (comp.get("notes") or ev.get("notes") or []):
+            text=n.get("headline") if isinstance(n,dict) else n
+            if text: notes.append(text)
         e = {
             "sport": sport, "start_utc": start, "home": home or "TBD", "away": away or "TBD",
             "competition": league, "conference": "", "venue": venue, "status": status,
-            "source": source_name, "source_url": source_url, "upstream_id": ev.get("id")
+            "source": source_name, "source_url": source_url, "upstream_id": ev.get("id"),
+            "links":link_map,"home_score":home_score,"away_score":away_score,
+            "home_rank":home_rank,"away_rank":away_rank,"broadcasts":broadcasts,"notes":notes
         }
         e["id"] = event_id(e)
         e["raw_hash"] = hashlib.sha256(json.dumps(ev, sort_keys=True).encode()).hexdigest()
@@ -296,7 +353,14 @@ def refresh_custom_sources():
                 e = {"sport":sport,"start_utc":start,"home":home,"away":away,"competition":comp or "NCAA",
                      "conference":item.get("conference") or "","venue":tn(item.get("venue") or item.get("location")) or "",
                      "status":item.get("status") or "Scheduled","source":name,"source_url":item.get("source_url") or "",
-                     "upstream_id":item.get("id") or item.get("event_id")}
+                     "upstream_id":item.get("id") or item.get("event_id"),
+                     "links":item.get("links") if isinstance(item.get("links"),dict) else {},
+                     "home_score":str(item.get("home_score")) if item.get("home_score") is not None else None,
+                     "away_score":str(item.get("away_score")) if item.get("away_score") is not None else None,
+                     "home_rank":str(item.get("home_rank")) if item.get("home_rank") is not None else None,
+                     "away_rank":str(item.get("away_rank")) if item.get("away_rank") is not None else None,
+                     "broadcasts":item.get("broadcasts") if isinstance(item.get("broadcasts"),list) else [],
+                     "notes":item.get("notes") if isinstance(item.get("notes"),list) else []}
                 e["id"] = event_id(e)
                 e["raw_hash"] = hashlib.sha256(json.dumps(item, sort_keys=True).encode()).hexdigest()
                 upsert_event(e, 0.75)
@@ -359,6 +423,35 @@ class Handler(BaseHTTPRequestHandler):
             rows = DB.execute("SELECT source,ok,message,checked_at FROM source_status ORDER BY source").fetchall()
             self.send_json([dict(r) for r in rows])
             return
+        if path.startswith("/api/event/"):
+            event_id_req=path.split("/api/event/",1)[1]
+            row=DB.execute("SELECT * FROM events WHERE id=?",(event_id_req,)).fetchone()
+            if not row:
+                self.send_json({"error":"Event not found"},404); return
+            out=dict(row)
+            try: out["links"]=json.loads(out.get("links_json") or "{}")
+            except Exception: out["links"]={}
+            for key in ("broadcasts","notes"):
+                try: out[key]=json.loads(out.get(f"{key}_json") or "[]")
+                except Exception: out[key]=[]
+            if out.get("upstream_id") and "ESPN" in (out.get("source") or ""):
+                source_names=(out.get("source") or "").split(" + ")
+                feed=next((x for feeds in ESPN_FEEDS.values() for x in feeds if x[0] in source_names),None)
+                if feed:
+                    _,path_sport,league=feed
+                    try:
+                        summary_url=f"https://site.api.espn.com/apis/site/v2/sports/{quote(path_sport)}/{quote(league)}/summary?event={quote(str(out['upstream_id']))}"
+                        summary=fetch_json(summary_url)
+                        out["summary_available"]=True
+                        out["summary"]={"plays":summary.get("plays") or [],"leaders":summary.get("leaders") or [],
+                            "situation":summary.get("situation") or {},"odds":summary.get("odds") or [],
+                            "pickcenter":summary.get("pickcenter") or [],"winprobability":summary.get("winprobability") or [],
+                            "broadcasts":summary.get("broadcasts") or [],"news":summary.get("news") or [],
+                            "boxscore":summary.get("boxscore") or {}}
+                    except Exception as ex:
+                        out["summary_available"]=False; out["summary_error"]=str(ex)[:180]
+            self.send_json(out); return
+
         if path == "/api/events":
             now = datetime.now(timezone.utc)
             lo = (now - timedelta(days=1)).isoformat()

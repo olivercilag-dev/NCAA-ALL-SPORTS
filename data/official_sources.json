@@ -1,0 +1,30 @@
+{
+  "sources": [
+    {
+      "name": "OFFICIAL SCHOOL — public iCal/JSON feed",
+      "enabled": false,
+      "type": "official_school",
+      "format": "ics",
+      "school": "REPLACE",
+      "sport": "football",
+      "url": "https://REPLACE-WITH-OFFICIAL-FEED",
+      "school_url": "https://REPLACE-WITH-OFFICIAL-SCHOOL-SITE",
+      "schedule_url": "https://REPLACE-WITH-OFFICIAL-SCHEDULE",
+      "competition": "NCAA",
+      "note": "Enable only a public/authorized feed whose terms permit this use."
+    },
+    {
+      "name": "OFFICIAL SCHOOL — public JSON feed",
+      "enabled": false,
+      "type": "official_school",
+      "format": "json",
+      "school": "REPLACE",
+      "sport": "basketball",
+      "url": "https://REPLACE-WITH-OFFICIAL-JSON-FEED",
+      "school_url": "https://REPLACE-WITH-OFFICIAL-SCHOOL-SITE",
+      "schedule_url": "https://REPLACE-WITH-OFFICIAL-SCHEDULE",
+      "competition": "NCAA",
+      "note": "No scraping or bypassing access controls."
+    }
+  ]
+}
