@@ -3,62 +3,73 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NCAA All Sports — All NCAA Events in One Place</title>
+<meta name="theme-color" content="#020817">
+<meta name="description" content="NCAA All Sports — schedules, scores, Game Center and official/public school information in one place.">
+<title>NCAA ALL SPORTS</title>
 <link rel="icon" type="image/png" href="/assets/favicon.png">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-<header>
+<header class="topbar">
   <div class="brand-wrap">
     <img class="site-logo site-logo-header" src="/assets/ncaa-all-sports-logo.png" alt="NCAA All Sports">
-    <div>
-      <div class="brand">NCAA ALL SPORTS</div>
-      <div class="sub" id="sub">All NCAA events • One chronological feed • UTC</div>
-    </div>
+    <div class="brand-copy"><div class="brand"><span>NCAA</span> ALL SPORTS</div><div class="sub" id="sub">All NCAA events • One chronological feed • UTC</div></div>
   </div>
-  <div class="headright">
-    <div id="lang" class="language-picker"></div>
-    <div id="tz" class="timezone-picker"></div>
-    <div id="clock"></div>
-  </div>
+  <nav class="main-nav" aria-label="Main navigation">
+    <button class="nav-item active" data-jump="home"><b>⌂</b><span>Home</span></button>
+    <button class="nav-item" data-jump="schedule"><b>▦</b><span>Schedule</span></button>
+    <button class="nav-item" data-jump="teams"><b>♙</b><span>Teams</span></button>
+    <button class="nav-item" data-jump="conferences"><b>♟</b><span>Conferences</span></button>
+    <button class="nav-item" data-jump="standings"><b>▥</b><span>Standings</span></button>
+    <button class="nav-item" data-jump="news"><b>★</b><span>News</span></button>
+    <button class="nav-item" data-jump="settings"><b>⚙</b><span>Settings</span></button>
+  </nav>
+  <div class="headright"><div id="lang" class="language-picker"></div><div id="tz" class="timezone-picker"></div><div id="clock"></div></div>
 </header>
-<div id="brandSplash" class="brand-splash" aria-hidden="true">
-  <div class="splash-inner">
-    <img src="/assets/ncaa-all-sports-logo.png" alt="NCAA All Sports">
-    <div class="splash-title">NCAA ALL SPORTS</div>
-    <div class="splash-tagline">ALL NCAA SPORTS • ONE PLACE • ALL DATA</div>
-    <div class="splash-loader"></div>
-  </div>
-</div>
-<main>
-  <section class="brand-hero">
-    <div class="brand-hero-copy">
-      <span class="eyebrow">NCAA ALL SPORTS</span>
-      <h1>All NCAA sports. <span>One place.</span></h1>
-      <p>Schedules, scores, statistics, conferences, school links and Game Center — with UTC as the primary time zone.</p>
-    </div>
-    <img class="site-logo site-logo-hero" src="/assets/ncaa-all-sports-logo.png" alt="NCAA All Sports">
+<div id="brandSplash" class="brand-splash" aria-hidden="true"><div class="splash-inner"><img src="/assets/ncaa-all-sports-logo.png" alt=""><div class="splash-title">NCAA ALL SPORTS</div><div class="splash-tagline">ALL NCAA SPORTS • ONE PLACE • ALL DATA</div><div class="splash-loader"></div></div></div>
+<main id="home">
+  <section class="hero-banner">
+    <div class="hero-art left-art">🏀 ⚽</div>
+    <div class="hero-logo"><img src="/assets/ncaa-all-sports-logo.png" alt="NCAA All Sports"></div>
+    <div class="hero-copy"><div class="eyebrow">NCAA ALL SPORTS</div><h1>ALL NCAA SPORTS<br><span>ONE PLATFORM</span></h1><p>College sports. All in one place.</p></div>
+    <div class="hero-art right-art">🏒 ⚾</div>
   </section>
-  <nav class="ranges" id="ranges"></nav>
-  <section class="tools">
-    <input id="search" placeholder="Search team, sport, conference or venue">
-    <select id="sport"></select>
+  <section class="quick-strip">
+    <div><b>⌁</b><strong>LIVE SCORES</strong><small>Real-time updates</small></div><i></i>
+    <div><b>◉</b><strong>GAME CENTER</strong><small>Stats, play-by-play, more</small></div><i></i>
+    <div><b>▦</b><strong>FULL SCHEDULE</strong><small>All sports, all teams</small></div><i></i>
+    <div><b>♙</b><strong>TEAM PAGES</strong><small>Rosters, stats, links</small></div><i></i>
+    <div><b>♟</b><strong>CONFERENCES</strong><small>Standings & rankings</small></div><i></i>
+    <div><b>▤</b><strong>NEWS</strong><small>Latest updates</small></div>
   </section>
-  <div class="legend" id="legend"></div>
-  <div id="status"></div>
-  <section id="feed"></section>
+  <section class="sport-strip" id="sportStrip"></section>
+  <section class="dashboard">
+    <aside class="left-sidebar">
+      <div class="panel" id="settings">
+        <div class="panel-title">◉ &nbsp;Vremenska zona</div><div id="tzSide"></div>
+      </div>
+      <div class="panel"><div class="panel-title">▣ &nbsp;Datum</div><div class="mini-ranges" id="ranges"></div></div>
+      <div class="panel"><div class="panel-title">⌕ &nbsp;Pretraga</div><input class="side-search" id="search" placeholder="Pretraži tim, sport, konferenciju ili mesto"></div>
+      <div class="panel"><div class="panel-title">◈ &nbsp;Sport</div><select id="sport"></select></div>
+    </aside>
+    <section class="feed-column" id="schedule">
+      <div class="feed-heading"><div><h2 id="feedTitle">DANAS</h2><p id="feedMeta">UTC • NCAA EVENTS</p></div><div class="sortbox"><select id="sort"><option>Najranije prvo</option><option>Najkasnije prvo</option></select></div></div>
+      <div id="status"></div><div id="feed"></div>
+    </section>
+    <aside class="right-sidebar">
+      <div class="featured panel" id="featured"></div>
+      <div class="panel quick-links" id="teams"><div class="panel-title">▣ &nbsp;Brzi linkovi</div>
+        <a href="https://www.ncaa.com/" target="_blank" rel="noopener">NCAA official <span>›</span></a>
+        <a href="https://www.ncaa.com/sports" target="_blank" rel="noopener">Svi NCAA sportovi <span>›</span></a>
+        <a href="https://www.ncaa.com/news" target="_blank" rel="noopener">NCAA najnovije vesti <span>›</span></a>
+        <a href="https://www.ncaa.com/standings" target="_blank" rel="noopener">Standings / Rankings <span>›</span></a>
+      </div>
+      <div class="panel right-brand"><img src="/assets/ncaa-all-sports-logo.png" alt="NCAA All Sports"><strong>NCAA ALL SPORTS</strong><small>ALL NCAA EVENTS • ONE FEED • UTC</small></div>
+    </aside>
+  </section>
 </main>
-<footer class="site-footer">
-  <div><strong>NCAA ALL SPORTS</strong> · Independent sports-information interface</div>
-  <div>© 2026 NCAA ALL SPORTS · Original site identity &amp; artwork</div>
-  <div>Not affiliated with or endorsed by the NCAA, ESPN, conferences, or schools.</div>
-</footer>
-<div id="modal" class="modal hidden">
-  <div class="dialog">
-    <button id="close" aria-label="Close">×</button>
-    <div id="detail"></div>
-  </div>
-</div>
+<footer class="site-footer"><strong>NCAA ALL SPORTS</strong><span>Independent sports-information interface • © 2026</span><small>Not affiliated with or endorsed by NCAA, ESPN, conferences or universities.</small></footer>
+<div id="modal" class="modal hidden"><div class="dialog"><button id="close" aria-label="Close">×</button><div id="detail"></div></div></div>
 <script src="/app.js"></script>
 </body>
 </html>
