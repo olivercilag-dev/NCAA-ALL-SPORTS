@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: ncaa-all-sports
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app/server.py
+    envVars:
+      - key: DATABASE_PATH
+        value: data/ncaa.sqlite3
+      - key: REFRESH_MINUTES
+        value: 15
