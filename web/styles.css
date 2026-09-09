@@ -12,7 +12,7 @@ header{padding:24px 4%;display:flex;justify-content:space-between;gap:20px;align
 .language-picker.open .lang-menu{display:block}
 .lang-option{width:100%;border:0;border-radius:8px;padding:9px 10px;display:flex;align-items:center;gap:10px;text-align:left}
 .lang-option:hover,.lang-option.selected{background:#18359a}
-.flag{width:28px;height:19px;object-fit:cover;border-radius:2px;display:block;flex:none}
+.flag{width:28px;height:19px;object-fit:cover;border-radius:2px;display:block;flex:none;border:1px solid #ffffff22}
 main{max-width:1250px;margin:auto;padding:22px 4%}
 .ranges{display:flex;gap:10px;flex-wrap:wrap}.ranges button{background:#0c206d;color:white;border:1px solid #4d6fff;border-radius:12px;padding:11px 16px;font-weight:800;cursor:pointer}.ranges button.active{background:#3157ff}
 .tools{display:grid;grid-template-columns:1fr 220px;gap:12px;margin:18px 0}
@@ -23,3 +23,5 @@ select,input,button{font:inherit}select,input{background:#0b1d68;color:white;bor
 .empty{padding:35px;text-align:center;opacity:.7;border:1px dashed #3955a0;border-radius:15px}.modal{position:fixed;inset:0;background:#000b;display:grid;place-items:center;padding:18px}.hidden{display:none}.dialog{width:min(700px,100%);max-height:90vh;overflow:auto;background:#0a1855;border:1px solid #5876ff;border-radius:18px;padding:24px;position:relative}.dialog h2{margin-top:0}.dialog .row{padding:10px 0;border-bottom:1px solid #263b82}.dialog .label{opacity:.65;font-size:12px}.dialog #close{position:absolute;right:14px;top:10px;background:none;border:0;color:white;font-size:28px;cursor:pointer}
 [dir="rtl"] .lang-menu{right:auto;left:0}[dir="rtl"] .lang-current,[dir="rtl"] .lang-option{text-align:right}[dir="rtl"] .lang-arrow{margin-left:0;margin-right:auto}[dir="rtl"] .sportbar{float:right;margin-right:0;margin-left:10px}[dir="rtl"] .badge{text-align:left}
 @media(max-width:700px){header{align-items:flex-start;flex-direction:column}.headright{width:100%;justify-content:space-between}.language-picker{min-width:155px}.tools{grid-template-columns:1fr}.event{grid-template-columns:78px 1fr}.badge{display:none}.teams{font-size:16px}.time{font-size:16px}}
+
+#status{font-size:12px;opacity:.65;margin:8px 0 12px}

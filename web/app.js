@@ -34,7 +34,7 @@ const $=id=>document.getElementById(id);
 function t(k){return I18N[lang][k] || I18N.en[k] || k;}
 function dayKey(d){return d.toISOString().slice(0,10);}
 function utcDayOffset(n){let d=new Date();d.setUTCHours(0,0,0,0);d.setUTCDate(d.getUTCDate()+n);return dayKey(d);}
-function flag(code){return `<img class="flag" src="https://flagcdn.com/w40/${LANGUAGES[code].flag}.png" alt="" loading="lazy">`;}
+function flag(code){return `<img class="flag" src="/flags/${LANGUAGES[code].flag}.svg" alt="" loading="lazy">`;}
 
 function setDirection(){
   const rtl=lang==="he";
