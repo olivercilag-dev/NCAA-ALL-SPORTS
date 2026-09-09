@@ -71,7 +71,8 @@ def db():
         updated_at TEXT NOT NULL, raw_hash TEXT,
         upstream_id TEXT, links_json TEXT DEFAULT '{}',
         home_score TEXT, away_score TEXT, home_rank TEXT, away_rank TEXT,
-        broadcasts_json TEXT DEFAULT '[]', notes_json TEXT DEFAULT '[]' 
+        broadcasts_json TEXT DEFAULT '[]', notes_json TEXT DEFAULT '[]',
+        home_logo TEXT DEFAULT '', away_logo TEXT DEFAULT ''
     )""")
     c.execute("""CREATE TABLE IF NOT EXISTS source_status(
         source TEXT PRIMARY KEY, ok INTEGER, message TEXT, checked_at TEXT
@@ -81,7 +82,7 @@ def db():
     for col, typ in [
         ("upstream_id","TEXT"),("links_json","TEXT DEFAULT '{}'"),
         ("home_score","TEXT"),("away_score","TEXT"),("home_rank","TEXT"),("away_rank","TEXT"),
-        ("broadcasts_json","TEXT DEFAULT '[]'"),("notes_json","TEXT DEFAULT '[]'")
+        ("broadcasts_json","TEXT DEFAULT '[]'"),("notes_json","TEXT DEFAULT '[]'"),("home_logo","TEXT"),("away_logo","TEXT")
     ]:
         if col not in existing_cols:
             c.execute(f"ALTER TABLE events ADD COLUMN {col} {typ}")
@@ -147,7 +148,7 @@ def upsert_event(e, confidence=0.55):
     now = iso_now()
     with DB_LOCK:
         existing = DB.execute(
-            "SELECT source,source_url,confidence,upstream_id,links_json,home_score,away_score,home_rank,away_rank,broadcasts_json,notes_json FROM events WHERE id=?",
+            "SELECT source,source_url,confidence,upstream_id,links_json,home_score,away_score,home_rank,away_rank,broadcasts_json,notes_json,home_logo,away_logo FROM events WHERE id=?",
             (e["id"],)
         ).fetchone()
         source=e.get("source") or ""; source_url=e.get("source_url") or ""; links=e.get("links") or {}; conf=confidence
@@ -166,13 +167,15 @@ def upsert_event(e, confidence=0.55):
             for key in ("upstream_id","home_score","away_score","home_rank","away_rank"):
                 if not e.get(key) and existing[key]: e[key]=existing[key]
             for key in ("broadcasts","notes"):
+                if not e.get("home_logo") and existing["home_logo"]: e["home_logo"]=existing["home_logo"]
+                if not e.get("away_logo") and existing["away_logo"]: e["away_logo"]=existing["away_logo"]
                 if not e.get(key):
                     try: e[key]=json.loads(existing[f"{key}_json"] or "[]")
                     except Exception: e[key]=[]
         DB.execute("""INSERT INTO events
           (id,sport,start_utc,home,away,competition,conference,venue,status,source,source_url,confidence,updated_at,raw_hash,
-           upstream_id,links_json,home_score,away_score,home_rank,away_rank,broadcasts_json,notes_json)
-          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+           upstream_id,links_json,home_score,away_score,home_rank,away_rank,broadcasts_json,notes_json,home_logo,away_logo)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           ON CONFLICT(id) DO UPDATE SET
           sport=excluded.sport,start_utc=excluded.start_utc,home=excluded.home,away=excluded.away,
           competition=excluded.competition,conference=excluded.conference,venue=excluded.venue,
@@ -181,13 +184,13 @@ def upsert_event(e, confidence=0.55):
           raw_hash=excluded.raw_hash,upstream_id=COALESCE(excluded.upstream_id,events.upstream_id),
           links_json=excluded.links_json,home_score=excluded.home_score,away_score=excluded.away_score,
           home_rank=excluded.home_rank,away_rank=excluded.away_rank,broadcasts_json=excluded.broadcasts_json,
-          notes_json=excluded.notes_json""",
+          notes_json=excluded.notes_json,home_logo=COALESCE(excluded.home_logo,events.home_logo),away_logo=COALESCE(excluded.away_logo,events.away_logo)""",
           (e["id"],normalize_sport(e["sport"]),e["start_utc"],e.get("home"),e.get("away"),
            e.get("competition"),e.get("conference"),e.get("venue"),e.get("status"),source,source_url,
            conf,now,e.get("raw_hash",""),e.get("upstream_id"),json.dumps(links,ensure_ascii=False),
            e.get("home_score"),e.get("away_score"),e.get("home_rank"),e.get("away_rank"),
            json.dumps(e.get("broadcasts") or [],ensure_ascii=False),
-           json.dumps(e.get("notes") or [],ensure_ascii=False)))
+           json.dumps(e.get("notes") or [],ensure_ascii=False),e.get("home_logo") or "",e.get("away_logo") or ""))
 
 
 def fetch_json(url, api_key=""):
@@ -251,14 +254,20 @@ def parse_espn(payload, sport, source_name):
         if not isinstance(competitors, list):
             competitors = []
         home = away = None
+        home_logo = away_logo = ""
         for c in competitors:
             if not isinstance(c, dict):
                 continue
-            name = _first_name(c.get("team")) or _first_name(c.get("athlete")) or _first_name(c.get("name"))
+            team_obj = _as_dict(c.get("team"))
+            name = _first_name(team_obj) or _first_name(c.get("athlete")) or _first_name(c.get("name"))
+            logos = team_obj.get("logos") if isinstance(team_obj.get("logos"), list) else []
+            logo = team_obj.get("logo") or (logos[0].get("href") if logos and isinstance(logos[0], dict) else "")
             if c.get("homeAway") == "home":
                 home = name
+                home_logo = logo or home_logo
             elif c.get("homeAway") == "away":
                 away = name
+                away_logo = logo or away_logo
         if not home and competitors and isinstance(competitors[0], dict):
             home = _first_name(competitors[0].get("team")) or _first_name(competitors[0].get("name"))
         if not away and len(competitors) > 1 and isinstance(competitors[1], dict):
@@ -346,6 +355,7 @@ def parse_espn(payload, sport, source_name):
             "competition": league, "conference": "", "venue": venue, "status": status,
             "source": source_name, "source_url": source_url, "upstream_id": ev.get("id"),
             "links": link_map, "home_score": home_score, "away_score": away_score,
+            "home_logo": home_logo, "away_logo": away_logo,
             "home_rank": home_rank, "away_rank": away_rank, "broadcasts": broadcasts, "notes": notes
         }
         e["id"] = event_id(e)
@@ -428,12 +438,17 @@ def refresh_custom_sources():
                 if isinstance(comp, dict): comp = comp.get("name", "")
                 def tn(x): return (x.get("name") or x.get("displayName")) if isinstance(x, dict) else x
                 teams = item.get("teams") if isinstance(item.get("teams"), dict) else {}
+                home_obj = item.get("homeTeam") if isinstance(item.get("homeTeam"), dict) else (teams.get("home") if isinstance(teams.get("home"), dict) else {})
+                away_obj = item.get("awayTeam") if isinstance(item.get("awayTeam"), dict) else (teams.get("away") if isinstance(teams.get("away"), dict) else {})
                 home = tn(item.get("home") or item.get("homeTeam") or teams.get("home")) or "TBD"
                 away = tn(item.get("away") or item.get("awayTeam") or teams.get("away")) or "TBD"
+                home_logo = (item.get("home_logo") or home_obj.get("logo") or "") if isinstance(home_obj, dict) else (item.get("home_logo") or "")
+                away_logo = (item.get("away_logo") or away_obj.get("logo") or "") if isinstance(away_obj, dict) else (item.get("away_logo") or "")
                 e = {"sport":sport,"start_utc":start,"home":home,"away":away,"competition":comp or "NCAA",
                      "conference":item.get("conference") or "","venue":tn(item.get("venue") or item.get("location")) or "",
                      "status":item.get("status") or "Scheduled","source":name,"source_url":item.get("source_url") or "",
                      "upstream_id":item.get("id") or item.get("event_id"),
+                     "home_logo":home_logo,"away_logo":away_logo,
                      "links":item.get("links") if isinstance(item.get("links"),dict) else {},
                      "home_score":str(item.get("home_score")) if item.get("home_score") is not None else None,
                      "away_score":str(item.get("away_score")) if item.get("away_score") is not None else None,
@@ -512,6 +527,8 @@ class Handler(BaseHTTPRequestHandler):
             try: out["links"]=json.loads(out.get("links_json") or "{}")
             except Exception: out["links"]={}
             for key in ("broadcasts","notes"):
+                if not e.get("home_logo") and existing["home_logo"]: e["home_logo"]=existing["home_logo"]
+                if not e.get("away_logo") and existing["away_logo"]: e["away_logo"]=existing["away_logo"]
                 try: out[key]=json.loads(out.get(f"{key}_json") or "[]")
                 except Exception: out[key]=[]
             if out.get("upstream_id") and "ESPN" in (out.get("source") or ""):

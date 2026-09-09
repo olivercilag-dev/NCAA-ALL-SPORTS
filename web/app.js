@@ -55,11 +55,71 @@ function officialSearchButton(team,kind){if(!team||team==="TBD")return"";const q
 function sportIcon(k){return ({football:"🏈",basketball:"🏀",soccer:"⚽",baseball:"⚾",volleyball:"🏐",ice_hockey:"🏒",softball:"🥎",golf:"⛳",lacrosse:"🥍",water_polo:"🌊",wrestling:"🤼",gymnastics:"🤸",track_field:"🏃",swimming_diving:"🏊",cross_country:"🏃",rowing:"🚣",fencing:"🤺",field_hockey:"🏑"}[k]||"◈")}
 function renderSportStrip(){const counts={};events.forEach(e=>{const k=canonicalSport(e.sport);if(k!=="tennis")counts[k]=(counts[k]||0)+1});const order=["football","basketball","soccer","baseball","volleyball","ice_hockey","golf","track_field","water_polo","lacrosse","softball","wrestling","gymnastics","field_hockey"];const keys=order.filter(k=>counts[k]).concat(Object.keys(counts).filter(k=>!order.includes(k)&&k!=="tennis"));$("sportStrip").innerHTML=`<button class="sport-tile active" data-sp=""><b>▦</b><strong>All Sports</strong><small>${events.length}</small></button>`+keys.map(k=>`<button class="sport-tile" data-sp="${k}"><b>${sportIcon(k)}</b><strong>${esc(SPORTS[k]||k)}</strong><small>${counts[k]}</small></button>`).join("");document.querySelectorAll(".sport-tile").forEach(b=>b.onclick=()=>{document.querySelectorAll(".sport-tile").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("sport").value=b.dataset.sp;render()})}
 function renderSideTimezone(){const box=$("tzSide");if(!box)return;box.innerHTML=`<div class="zone-current">${esc(zoneLabel(timezone))}</div><div class="zone-options"><label><input type="radio" name="sidezone" value="UTC" ${timezone==="UTC"?"checked":""}> UTC (default)</label><label><input type="radio" name="sidezone" value="America/New_York" ${timezone==="America/New_York"?"checked":""}> America/New_York (EDT)</label><label><input type="radio" name="sidezone" value="Europe/Belgrade" ${timezone==="Europe/Belgrade"?"checked":""}> Europe/Belgrade (CEST)</label><label><input type="radio" name="sidezone" value="Europe/London" ${timezone==="Europe/London"?"checked":""}> Europe/London (BST)</label><label><input type="radio" name="sidezone" value="Asia/Tokyo" ${timezone==="Asia/Tokyo"?"checked":""}> Asia/Tokyo (JST)</label></div><button class="more-zones" id="moreZones">Prikaži sve zone…</button>`;box.querySelectorAll("input").forEach(r=>r.onchange=()=>{timezone=r.value;localStorage.setItem("ncaaTimezone",timezone);renderTimezonePicker();renderSideTimezone();render();clock()});$("moreZones").onclick=()=>$("timezone").focus()}
-function renderFeatured(){const f=events.filter(e=>e.start_utc).slice().sort((a,b)=>new Date(a.start_utc)-new Date(b.start_utc))[0];if(!f){$("featured").innerHTML=`<div class="panel-title">★ &nbsp;Featured Match</div><div class="empty">No verified event.</div>`;return}const hs=f.home_score??"—",as=f.away_score??"—";$("featured").innerHTML=`<div class="panel-title">★ &nbsp;Featured Match <span class="live-dot">● LIVE</span></div><div class="featured-card"><div class="feature-sport">${sportIcon(f.sport)} ${esc(SPORTS[f.sport]||f.sport)}</div><h3>${esc(f.home||"TBD")} <span>VS</span> ${esc(f.away||"TBD")}</h3><div class="feature-score">${hs} : ${as}</div><small>${esc(zoneTime(f.start_utc))} • ${esc(f.venue||"NCAA")}</small><button class="feature-btn">Open Game Center →</button></div>`;$("featured").querySelector(".feature-btn").onclick=()=>detail(f)}
+function renderFeatured(){const f=events.filter(e=>e.start_utc).slice().sort((a,b)=>new Date(a.start_utc)-new Date(b.start_utc))[0];if(!f){$("featured").innerHTML=`<div class="panel-title">★ &nbsp;Featured Match</div><div class="empty">No verified event.</div>`;return}const hs=f.home_score??"—",as=f.away_score??"—";$("featured").innerHTML=`<div class="panel-title">★ &nbsp;Featured Match <span class="live-dot">● LIVE</span></div><div class="featured-card"><div class="feature-sport">${sportIcon(f.sport)} ${esc(SPORTS[f.sport]||f.sport)}</div><div class="featured-match"><div><div class="feature-logo">${f.away_logo?`<img src="${esc(f.away_logo)}" alt="" loading="lazy">`:""}</div><b>${esc(f.away||"TBD")}</b></div><div class="feature-score">${hs} <span>:</span> ${as}</div><div><div class="feature-logo">${f.home_logo?`<img src="${esc(f.home_logo)}" alt="" loading="lazy">`:""}</div><b>${esc(f.home||"TBD")}</b></div></div><small>${esc(zoneTime(f.start_utc))} • ${esc(f.venue||"NCAA")}</small><button class="feature-btn">Open Game Center →</button></div>`;$("featured").querySelector(".feature-btn").onclick=()=>detail(f)}
 function updateDashboardMeta(list){const title=range==="today"?"DANAS":range==="yesterday"?"JUČE":range==="tomorrow"?"SUTRA":"SLEDEĆIH 7 DANA";$("feedTitle").textContent=title;$("feedMeta").textContent=`${new Date().toISOString().slice(0,10)} • ${list.length} ${t("events")} • ${zoneLabel(timezone)}`}
 function setup(){renderLanguagePicker();renderTimezonePicker();renderSideTimezone();$("ranges").innerHTML=[["yesterday","yesterday"],["today","today"],["tomorrow","tomorrow"],["next","next"]].map(([k,v])=>`<button data-r="${v}">${t(k)}</button>`).join("");document.querySelectorAll("#ranges button").forEach(b=>b.onclick=()=>{range=b.dataset.r;document.querySelectorAll("#ranges button").forEach(x=>x.classList.toggle("active",x===b));render()});$("search").oninput=render;$("timeFrom").onchange=e=>{timeFrom=e.target.value;render()};$("timeTo").onchange=e=>{timeTo=e.target.value;render()};$("clearFilters").onclick=()=>{timeFrom="";timeTo="";$("timeFrom").value="";$("timeTo").value="";$("search").value="";$("sport").value="";renderSportStrip();render()};$("sport").onchange=()=>{document.querySelectorAll(".sport-tile").forEach(x=>x.classList.toggle("active",x.dataset.sp===$("sport").value));render()};$("sort").onchange=render;$("close").onclick=()=>$("modal").classList.add("hidden");$("modal").addEventListener("click",e=>{if(e.target.id==="modal")$("modal").classList.add("hidden")});document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>{document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));b.classList.add("active");const id=b.dataset.jump;if(id==="schedule")$("schedule").scrollIntoView({behavior:"smooth",block:"start"});else if(id==="settings")$("settings").scrollIntoView({behavior:"smooth",block:"center"});else $("home").scrollIntoView({behavior:"smooth",block:"start"})})}
 function applyTexts(){renderTimezonePicker();renderSideTimezone();$("sub").textContent=t("sub");$("search").placeholder=t("search");$("ranges").querySelectorAll("button").forEach(b=>b.textContent=t(b.dataset.r==="next"?"next":b.dataset.r));const s=$("sport").value;$("sport").innerHTML=`<option value="">${t("all")}</option>`+Object.entries(SPORTS).filter(([k])=>k!=="tennis").map(([k,v])=>`<option value="${k}">${v}</option>`).join("");$("sport").value=s}
-function render(){applyTexts();const todayKey=localDateKey(new Date().toISOString(),timezone);const base=new Date(todayKey+"T00:00:00Z");const offset=range==="yesterday"?-1:range==="tomorrow"?1:0;let days=[];if(range==="next"){for(let i=1;i<=7;i++){const d=new Date(base);d.setUTCDate(d.getUTCDate()+i);days.push(dayKey(d))}}else{const d=new Date(base);d.setUTCDate(d.getUTCDate()+offset);days=[dayKey(d)]}const q=($("search").value||"").toLowerCase(),sp=$("sport").value;let list=events.filter(e=>{if(!e.start_utc||!days.includes(localDateKey(e.start_utc,timezone)))return false;if(sp&&e.sport!==sp)return false;const hm=zoneHM(e.start_utc);if(timeFrom&&hm<timeFrom)return false;if(timeTo&&hm>timeTo)return false;return JSON.stringify(e).toLowerCase().includes(q)});if($("sort")?.value==="Najkasnije prvo")list.sort((a,b)=>new Date(b.start_utc)-new Date(a.start_utc));else list.sort((a,b)=>new Date(a.start_utc)-new Date(b.start_utc));$("feed").innerHTML="";updateDashboardMeta(list);renderSportStrip();renderFeatured();if(!list.length){$("feed").innerHTML=`<div class="empty">${t("empty")}</div>`;return}for(const day of days){const arr=list.filter(e=>localDateKey(e.start_utc,timezone)===day);if(!arr.length)continue;const h=document.createElement("div");h.className="day";h.textContent=`${day} • ${arr.length} ${t("events")} • ${zoneLabel(timezone)}`;$("feed").appendChild(h);arr.forEach(e=>{const card=document.createElement("article");card.className="event";const score=(e.home_score??"")!==""||(e.away_score??"")!==""?`<span class="mini-score">${e.home_score??"—"} : ${e.away_score??"—"}</span>`:"";const local=zoneTime(e.start_utc);const utc=e.start_utc.replace("T"," ").replace("Z"," UTC");card.innerHTML=`<div class="time"><strong>${esc(local.slice(12,17))}</strong><br><small>${esc(zoneLabel(timezone))}</small><div class="utc-mini">${esc(utc.slice(11,16))} UTC</div></div><div><span class="sportbar" style="background:${e.color||"#94a3b8"}"></span><div class="teams">${esc(e.home||"TBD")} ${score}<span class="vs">VS</span> ${esc(e.away||"TBD")}</div><div class="meta">${esc(SPORTS[e.sport]||e.sport)} • ${esc(e.conference||e.competition||"NCAA")}${e.venue?" • "+esc(e.venue):""}</div></div><div class="badge"><span class="status">${esc(e.status||t("scheduled"))}</span><small>${t("details")} ↗</small></div>`;card.onclick=()=>detail(e);$("feed").appendChild(card)})}}
+function schoolSearchUrl(team){
+  if(!team||team==='TBD') return '#';
+  return `https://www.google.com/search?q=${encodeURIComponent(team+' official athletics')}`;
+}
+function providerMark(source){
+  const s=String(source||'').trim();
+  if(!s) return '';
+  const key=s.toLowerCase();
+  const mark=key.includes('espn')?'ESPN':key.includes('ncaa')?'NCAA':key.includes('official')?'OFFICIAL':s.split(/\s+/)[0].slice(0,10).toUpperCase();
+  return `<span class="source-badge"><span class="source-mark">${esc(mark)}</span><span>${esc(s)}</span></span>`;
+}
+function render(){
+  applyTexts();
+  const todayKey=localDateKey(new Date().toISOString(),timezone);
+  const base=new Date(todayKey+'T00:00:00Z');
+  const offset=range==='yesterday'?-1:range==='tomorrow'?1:0;
+  let days=[];
+  if(range==='next'){
+    for(let i=1;i<=7;i++){const d=new Date(base);d.setUTCDate(d.getUTCDate()+i);days.push(dayKey(d))}
+  }else{
+    const d=new Date(base);d.setUTCDate(d.getUTCDate()+offset);days=[dayKey(d)]
+  }
+  const q=($('search').value||'').toLowerCase(),sp=$('sport').value;
+  let list=events.filter(e=>{
+    if(!e.start_utc||!days.includes(localDateKey(e.start_utc,timezone)))return false;
+    if(sp&&e.sport!==sp)return false;
+    const hm=zoneHM(e.start_utc);
+    if(timeFrom&&hm<timeFrom)return false;
+    if(timeTo&&hm>timeTo)return false;
+    return JSON.stringify(e).toLowerCase().includes(q)
+  });
+  if($('sort')?.value==='Start Time (Latest)'||$('sort')?.value==='Najkasnije prvo') list.sort((a,b)=>new Date(b.start_utc)-new Date(a.start_utc));
+  else list.sort((a,b)=>new Date(a.start_utc)-new Date(b.start_utc));
+  $('feed').innerHTML='';
+  updateDashboardMeta(list);renderSportStrip();renderFeatured();
+  if(!list.length){$('feed').innerHTML=`<div class="empty">${t('empty')}</div>`;return}
+  for(const day of days){
+    const arr=list.filter(e=>localDateKey(e.start_utc,timezone)===day);
+    if(!arr.length)continue;
+    const h=document.createElement('div');h.className='day';h.textContent=`${day} • ${arr.length} ${t('events')} • ${zoneLabel(timezone)}`;$('feed').appendChild(h);
+    arr.forEach(e=>{
+      const card=document.createElement('article');card.className='event';card.style.setProperty('--event-color',e.color||'#1597ff');
+      const score=(e.home_score??'')!==''||(e.away_score??'')!==''?`<span class="mini-score">${esc(e.home_score??'—')} : ${esc(e.away_score??'—')}</span>`:'';
+      const local=zoneTime(e.start_utc);const utc=e.start_utc.replace('T',' ').replace('Z',' UTC');
+      const logo=(url,name,side)=>url?`<a class="team-logo-link feed-logo-link" href="${esc(schoolSearchUrl(name))}" target="_blank" rel="noopener noreferrer" title="Open ${esc(name||'team')} official search" onclick="event.stopPropagation()"><img class="event-team-logo" src="${esc(url)}" alt="${esc(name||'')}" loading="lazy" onerror="this.style.display='none'"></a>`:`<a class="team-logo-link feed-logo-link placeholder" href="${esc(schoolSearchUrl(name))}" target="_blank" rel="noopener noreferrer" title="Open ${esc(name||'team')} official search" onclick="event.stopPropagation()">${side}</a>`;
+      card.innerHTML=`
+        <div class="time"><strong>${esc(local.slice(12,17))}</strong><small>${esc(zoneLabel(timezone))}</small><div class="utc-mini">${esc(utc.slice(11,16))} UTC</div></div>
+        <div class="matchup">
+          <div class="team-line">
+            <span class="team-side away-side">${logo(e.away_logo,e.away,'A')}<b>${esc(e.away||'TBD')}</b></span>
+            <span class="vs">VS</span>
+            <span class="team-side home-side"><b>${esc(e.home||'TBD')}</b>${logo(e.home_logo,e.home,'H')}</span>${score}
+          </div>
+          <div class="meta">${esc(SPORTS[e.sport]||e.sport)} • ${esc(e.conference||e.competition||'NCAA')}${e.venue?' • '+esc(e.venue):''}</div>
+          ${providerMark(e.source)}
+        </div>
+        <div class="badge"><span class="status">${esc(e.status||t('scheduled'))}</span><small>${t('details')} ↗</small></div>`;
+      card.onclick=()=>detail(e);$('feed').appendChild(card)
+    })
+  }
+}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
 function linkButton(url,label){if(!url)return"";return `<a class="detail-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)} ↗</a>`}
 function simpleValue(v){if(v==null)return"";if(typeof v==="string"||typeof v==="number"||typeof v==="boolean")return esc(v);if(Array.isArray(v))return v.map(simpleValue).join(" • ");if(typeof v==="object")return Object.entries(v).filter(([k,x])=>x!=null&&x!=="").slice(0,12).map(([k,x])=>`<div><b>${esc(k)}:</b> ${simpleValue(x)}</div>`).join("");return""}
