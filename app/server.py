@@ -211,62 +211,142 @@ def set_source(name, ok, message):
         DB.commit()
 
 
+def _as_dict(v):
+    return v if isinstance(v, dict) else {}
+
+
+def _first_name(v):
+    if isinstance(v, dict):
+        return v.get("displayName") or v.get("shortDisplayName") or v.get("name") or v.get("shortName")
+    if isinstance(v, str):
+        return v
+    return None
+
+
 def parse_espn(payload, sport, source_name):
+    """Parse ESPN scoreboard JSON defensively.
+
+    ESPN sometimes returns strings in arrays that historically contained
+    objects (notably links/broadcast names/notes). V7 ignores malformed
+    optional fields instead of dropping the entire event/feed.
+    """
     rows = []
-    if not isinstance(payload, dict): return rows
-    for ev in payload.get("events", []) or []:
+    if not isinstance(payload, dict):
+        return rows
+    events = payload.get("events") or []
+    if not isinstance(events, list):
+        return rows
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
         competitions = ev.get("competitions") or []
-        comp = competitions[0] if competitions else {}
+        if not isinstance(competitions, list):
+            competitions = []
+        comp = _as_dict(competitions[0]) if competitions else {}
         start = parse_time(ev.get("date") or comp.get("date"))
-        if not start: continue
+        if not start:
+            continue
+
         competitors = comp.get("competitors") or []
+        if not isinstance(competitors, list):
+            competitors = []
         home = away = None
         for c in competitors:
-            team = c.get("team") or {}
-            name = team.get("displayName") or team.get("shortDisplayName") or team.get("name")
-            if c.get("homeAway") == "home": home = name
-            elif c.get("homeAway") == "away": away = name
-        if not home and competitors:
-            home = ((competitors[0].get("team") or {}).get("displayName"))
-        if not away and len(competitors) > 1:
-            away = ((competitors[1].get("team") or {}).get("displayName"))
-        venue_obj = comp.get("venue") or {}
-        venue = venue_obj.get("fullName") or ((venue_obj.get("address") or {}).get("city") or "")
+            if not isinstance(c, dict):
+                continue
+            name = _first_name(c.get("team")) or _first_name(c.get("athlete")) or _first_name(c.get("name"))
+            if c.get("homeAway") == "home":
+                home = name
+            elif c.get("homeAway") == "away":
+                away = name
+        if not home and competitors and isinstance(competitors[0], dict):
+            home = _first_name(competitors[0].get("team")) or _first_name(competitors[0].get("name"))
+        if not away and len(competitors) > 1 and isinstance(competitors[1], dict):
+            away = _first_name(competitors[1].get("team")) or _first_name(competitors[1].get("name"))
+
+        venue_obj = _as_dict(comp.get("venue"))
+        address = venue_obj.get("address")
+        city = address.get("city") if isinstance(address, dict) else (address if isinstance(address, str) else "")
+        venue = venue_obj.get("fullName") or city or ""
+
         status_obj = comp.get("status") or ev.get("status") or {}
-        status_type = status_obj.get("type") or {}
-        status = status_type.get("detail") or status_type.get("description") or "Scheduled"
-        league = ((ev.get("season") or {}).get("displayName") or ((payload.get("leagues") or [{}])[0].get("name") if payload.get("leagues") else None) or "NCAA")
+        status_obj = _as_dict(status_obj)
+        status_type = _as_dict(status_obj.get("type"))
+        status = status_type.get("detail") or status_type.get("description") or status_obj.get("detail") or "Scheduled"
+
+        leagues = payload.get("leagues") or []
+        league_name = None
+        if isinstance(leagues, list) and leagues:
+            league_name = _first_name(leagues[0])
+        season = _as_dict(ev.get("season"))
+        league = season.get("displayName") or league_name or "NCAA"
+
         links = ev.get("links") or []
-        source_url = next((x.get("href") for x in links if x.get("href")), "")
-        link_map={}
+        if not isinstance(links, list):
+            links = []
+        source_url = ""
+        link_map = {}
         for link in links:
-            href=link.get("href"); rels=link.get("rel") or []
-            if isinstance(rels,str): rels=[rels]
-            if href:
-                for rel in rels: link_map[str(rel).lower()]=href
-        home_score=away_score=home_rank=away_rank=None
+            if isinstance(link, dict):
+                href = link.get("href") or ""
+                rels = link.get("rel") or []
+                if isinstance(rels, str):
+                    rels = [rels]
+                if href and not source_url:
+                    source_url = href
+                if href and isinstance(rels, list):
+                    for rel in rels:
+                        if rel:
+                            link_map[str(rel).lower()] = href
+            elif isinstance(link, str) and link and not source_url:
+                source_url = link
+
+        home_score = away_score = home_rank = away_rank = None
         for c in competitors:
-            if c.get("homeAway")=="home":
-                home_score=str(c.get("score")) if c.get("score") is not None else None
-                home_rank=str(c.get("rank")) if c.get("rank") is not None else None
-            elif c.get("homeAway")=="away":
-                away_score=str(c.get("score")) if c.get("score") is not None else None
-                away_rank=str(c.get("rank")) if c.get("rank") is not None else None
-        broadcasts=[]
-        for b in (comp.get("broadcasts") or []):
-            for n in (b.get("names") or []):
-                name=n.get("shortName") or n.get("name")
-                if name and name not in broadcasts: broadcasts.append(name)
-        notes=[]
-        for n in (comp.get("notes") or ev.get("notes") or []):
-            text=n.get("headline") if isinstance(n,dict) else n
-            if text: notes.append(text)
+            if not isinstance(c, dict):
+                continue
+            score = c.get("score")
+            rank = c.get("rank")
+            if c.get("homeAway") == "home":
+                home_score = str(score) if score is not None else None
+                home_rank = str(rank) if rank is not None else None
+            elif c.get("homeAway") == "away":
+                away_score = str(score) if score is not None else None
+                away_rank = str(rank) if rank is not None else None
+
+        broadcasts = []
+        raw_broadcasts = comp.get("broadcasts") or []
+        if isinstance(raw_broadcasts, list):
+            for b in raw_broadcasts:
+                if isinstance(b, dict):
+                    names = b.get("names") or []
+                    if isinstance(names, str):
+                        names = [names]
+                    if not isinstance(names, list):
+                        names = []
+                    for n in names:
+                        name = _first_name(n)
+                        if name and name not in broadcasts:
+                            broadcasts.append(name)
+                elif isinstance(b, str) and b not in broadcasts:
+                    broadcasts.append(b)
+
+        notes = []
+        raw_notes = comp.get("notes") or ev.get("notes") or []
+        if isinstance(raw_notes, list):
+            for n in raw_notes:
+                text = n.get("headline") if isinstance(n, dict) else n
+                if text and str(text) not in notes:
+                    notes.append(str(text))
+        elif isinstance(raw_notes, str):
+            notes.append(raw_notes)
+
         e = {
             "sport": sport, "start_utc": start, "home": home or "TBD", "away": away or "TBD",
             "competition": league, "conference": "", "venue": venue, "status": status,
             "source": source_name, "source_url": source_url, "upstream_id": ev.get("id"),
-            "links":link_map,"home_score":home_score,"away_score":away_score,
-            "home_rank":home_rank,"away_rank":away_rank,"broadcasts":broadcasts,"notes":notes
+            "links": link_map, "home_score": home_score, "away_score": away_score,
+            "home_rank": home_rank, "away_rank": away_rank, "broadcasts": broadcasts, "notes": notes
         }
         e["id"] = event_id(e)
         e["raw_hash"] = hashlib.sha256(json.dumps(ev, sort_keys=True).encode()).hexdigest()

@@ -1,3 +1,5 @@
+NCAA ALL SPORTS — V7
+
 # NCAA ALL SPORTS — V6
 
 # NCAA ALL SPORTS — V4
@@ -48,3 +50,5 @@ Start: `python app/server.py`
 
 
 V6 adds verified official-school source support for public/authorized JSON and iCalendar feeds, preserves official school/schedule/event links, and exposes provider PBP/Gamecast/Summary/Box Score links when supplied. No source URL is fabricated and access controls are not bypassed.
+
+V7 fixes the ESPN scoreboard parser to tolerate optional fields returned as strings and prevents one malformed optional field from dropping an entire feed/event. It preserves V6 official-source infrastructure and does not fabricate events.
