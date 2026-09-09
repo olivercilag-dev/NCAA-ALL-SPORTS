@@ -77,6 +77,11 @@ def db():
     c.execute("""CREATE TABLE IF NOT EXISTS source_status(
         source TEXT PRIMARY KEY, ok INTEGER, message TEXT, checked_at TEXT
     )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS schools(
+        id TEXT PRIMARY KEY, sport TEXT NOT NULL, name TEXT NOT NULL,
+        abbreviation TEXT, logo TEXT, url TEXT, conference TEXT, source TEXT,
+        updated_at TEXT NOT NULL
+    )""")
     # Non-destructive migration for V1-V4 databases.
     existing_cols = {row[1] for row in c.execute("PRAGMA table_info(events)").fetchall()}
     for col, typ in [
@@ -94,10 +99,21 @@ def db():
 
 DB = db()
 DB_LOCK = threading.Lock()
+REFRESH_STATE = {"status":"starting", "started_at":iso_now() if "iso_now" in globals() else "", "finished_at":"", "events":0, "error":""}
+REFRESH_STATE_LOCK = threading.Lock()
 
 
 def iso_now():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def set_refresh_state(status, error=""):
+    with REFRESH_STATE_LOCK:
+        REFRESH_STATE["status"] = status
+        REFRESH_STATE["finished_at"] = iso_now() if status in ("ready", "error") else REFRESH_STATE.get("finished_at", "")
+        REFRESH_STATE["events"] = DB.execute("SELECT COUNT(*) c FROM events").fetchone()["c"]
+        REFRESH_STATE["error"] = str(error)[:300] if error else ""
+
 
 
 def normalize_sport(v):
@@ -166,9 +182,9 @@ def upsert_event(e, confidence=0.55):
             links=old_links
             for key in ("upstream_id","home_score","away_score","home_rank","away_rank"):
                 if not e.get(key) and existing[key]: e[key]=existing[key]
+            if not e.get("home_logo") and existing["home_logo"]: e["home_logo"]=existing["home_logo"]
+            if not e.get("away_logo") and existing["away_logo"]: e["away_logo"]=existing["away_logo"]
             for key in ("broadcasts","notes"):
-                if not e.get("home_logo") and existing["home_logo"]: e["home_logo"]=existing["home_logo"]
-                if not e.get("away_logo") and existing["away_logo"]: e["away_logo"]=existing["away_logo"]
                 if not e.get(key):
                     try: e[key]=json.loads(existing[f"{key}_json"] or "[]")
                     except Exception: e[key]=[]
@@ -193,7 +209,7 @@ def upsert_event(e, confidence=0.55):
            json.dumps(e.get("notes") or [],ensure_ascii=False),e.get("home_logo") or "",e.get("away_logo") or ""))
 
 
-def fetch_json(url, api_key="", timeout=20):
+def fetch_json(url, api_key=""):
     p = urlparse(url)
     if p.scheme not in ("http", "https"):
         raise ValueError("Feed URL must use HTTP(S).")
@@ -201,7 +217,7 @@ def fetch_json(url, api_key="", timeout=20):
     if api_key:
         headers["Authorization"] = "Bearer " + api_key
     req = Request(url, headers=headers)
-    with urlopen(req, timeout=timeout) as r:
+    with urlopen(req, timeout=20) as r:
         raw = r.read()
         if len(raw) > 12_000_000:
             raise ValueError("Feed response is too large")
@@ -289,6 +305,10 @@ def parse_espn(payload, sport, source_name):
             league_name = _first_name(leagues[0])
         season = _as_dict(ev.get("season"))
         league = season.get("displayName") or league_name or "NCAA"
+        group_obj = _as_dict(comp.get("groups") or comp.get("group") or ev.get("groups") or ev.get("group"))
+        conference = (comp.get("conferenceName") or comp.get("conference") or comp.get("conferenceDisplayName") or
+                      group_obj.get("name") or group_obj.get("displayName") or "")
+        if isinstance(conference, dict): conference = _first_name(conference) or ""
 
         links = ev.get("links") or []
         if not isinstance(links, list):
@@ -352,7 +372,7 @@ def parse_espn(payload, sport, source_name):
 
         e = {
             "sport": sport, "start_utc": start, "home": home or "TBD", "away": away or "TBD",
-            "competition": league, "conference": "", "venue": venue, "status": status,
+            "competition": league, "conference": conference, "venue": venue, "status": status,
             "source": source_name, "source_url": source_url, "upstream_id": ev.get("id"),
             "links": link_map, "home_score": home_score, "away_score": away_score,
             "home_logo": home_logo, "away_logo": away_logo,
@@ -368,6 +388,42 @@ def fetch_espn_feed(source_name, path_sport, league, date):
     url = f"https://site.api.espn.com/apis/site/v2/sports/{quote(path_sport)}/{quote(league)}/scoreboard?dates={date.strftime('%Y%m%d')}&limit=1000"
     payload = fetch_json(url)
     return source_name, parse_espn(payload, normalize_sport(path_sport), source_name), True
+
+
+def refresh_espn_teams():
+    """Refresh the public ESPN team directory for configured leagues.
+    This is a directory cache only; it never fabricates schools or URLs.
+    """
+    for sport, feeds in ESPN_FEEDS.items():
+        for source_name, path_sport, league in feeds:
+            url=f"https://site.api.espn.com/apis/site/v2/sports/{quote(path_sport)}/{quote(league)}/teams?limit=1000"
+            try:
+                payload=fetch_json(url)
+                teams=payload.get("sports",[{}])[0].get("leagues",[{}])[0].get("teams",[]) if isinstance(payload,dict) else []
+                if not isinstance(teams,list): teams=[]
+                count=0
+                with DB_LOCK:
+                    for entry in teams:
+                        tm=entry.get("team") if isinstance(entry,dict) else None
+                        if not isinstance(tm,dict): continue
+                        name=tm.get("displayName") or tm.get("name") or tm.get("location")
+                        if not name: continue
+                        logos=tm.get("logos") if isinstance(tm.get("logos"),list) else []
+                        logo=tm.get("logo") or (logos[0].get("href") if logos and isinstance(logos[0],dict) else "")
+                        links=tm.get("links") if isinstance(tm.get("links"),list) else []
+                        team_url=next((x.get("href") for x in links if isinstance(x,dict) and x.get("href")), "")
+                        groups=tm.get("groups") or tm.get("group") or {}
+                        conf=_first_name(groups) or tm.get("conference") or tm.get("conferenceName") or ""
+                        if isinstance(conf,dict): conf=_first_name(conf) or ""
+                        sid=str(tm.get("id") or hashlib.sha256((sport+"|"+name).encode()).hexdigest()[:24])
+                        DB.execute("""INSERT INTO schools(id,sport,name,abbreviation,logo,url,conference,source,updated_at) VALUES(?,?,?,?,?,?,?,?,?)
+                            ON CONFLICT(id) DO UPDATE SET sport=excluded.sport,name=excluded.name,abbreviation=excluded.abbreviation,logo=COALESCE(NULLIF(excluded.logo,''),schools.logo),url=COALESCE(NULLIF(excluded.url,''),schools.url),conference=COALESCE(NULLIF(excluded.conference,''),schools.conference),source=excluded.source,updated_at=excluded.updated_at""",
+                            (sid,sport,name,tm.get("abbreviation") or "",logo,team_url,conf,source_name,iso_now()))
+                        count+=1
+                    DB.commit()
+                set_source(source_name+" Teams", True, f"Team directory reachable: {count} teams")
+            except Exception as ex:
+                set_source(source_name+" Teams", False, str(ex)[:500])
 
 
 def refresh_espn():
@@ -411,6 +467,7 @@ def refresh_espn():
 
     with DB_LOCK:
         DB.commit()
+    refresh_espn_teams()
     reconcile()
 
 def refresh_custom_sources():
@@ -481,8 +538,18 @@ def reconcile():
 
 
 def refresh_all():
-    refresh_espn()
-    refresh_custom_sources()
+    with REFRESH_STATE_LOCK:
+        REFRESH_STATE["status"] = "refreshing"
+        REFRESH_STATE["started_at"] = iso_now()
+        REFRESH_STATE["error"] = ""
+    try:
+        refresh_espn()
+        refresh_custom_sources()
+        set_refresh_state("ready")
+    except Exception as ex:
+        set_refresh_state("error", ex)
+        set_source("ENGINE", False, str(ex))
+        raise
 
 
 def scheduler():
@@ -512,7 +579,9 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/api/health":
             row = DB.execute("SELECT COUNT(*) c FROM events").fetchone()
-            self.send_json({"ok":True,"service":"NCAA All Sports","time_utc":iso_now(),"events":row["c"],"refresh_minutes":REFRESH_MINUTES})
+            with REFRESH_STATE_LOCK:
+                state = dict(REFRESH_STATE)
+            self.send_json({"ok":True,"service":"NCAA All Sports","time_utc":iso_now(),"events":row["c"],"refresh_minutes":REFRESH_MINUTES,"refresh":state})
             return
         if path == "/api/sources":
             rows = DB.execute("SELECT source,ok,message,checked_at FROM source_status ORDER BY source").fetchall()
@@ -526,27 +595,9 @@ class Handler(BaseHTTPRequestHandler):
             out=dict(row)
             try: out["links"]=json.loads(out.get("links_json") or "{}")
             except Exception: out["links"]={}
-            # Decode stored arrays safely. Game Center must remain usable even
-            # when the live provider summary is temporarily unavailable.
-            for key in ("broadcasts", "notes"):
-                try:
-                    value = json.loads(out.get(f"{key}_json") or "[]")
-                    out[key] = value if isinstance(value, list) else []
-                except Exception:
-                    out[key] = []
-
-            # Always return a useful base Game Center payload from our local DB.
-            # Live ESPN enrichment below is optional and must never make the
-            # event page fail.
-            out["summary_available"] = False
-            out["summary_error"] = ""
-            out["summary"] = {}
-            out["team_profiles"] = []
-            if out.get("home") or out.get("away"):
-                out["team_profiles"] = [
-                    {"name": out.get("home") or "TBD", "home_away": "home", "logo": out.get("home_logo") or "", "rank": out.get("home_rank")},
-                    {"name": out.get("away") or "TBD", "home_away": "away", "logo": out.get("away_logo") or "", "rank": out.get("away_rank")}
-                ]
+            for key in ("broadcasts","notes"):
+                try: out[key]=json.loads(out.get(f"{key}_json") or "[]")
+                except Exception: out[key]=[]
             if out.get("upstream_id") and "ESPN" in (out.get("source") or ""):
                 source_names=(out.get("source") or "").split(" + ")
                 feed=next((x for feeds in ESPN_FEEDS.values() for x in feeds if x[0] in source_names),None)
@@ -554,7 +605,7 @@ class Handler(BaseHTTPRequestHandler):
                     _,path_sport,league=feed
                     try:
                         summary_url=f"https://site.api.espn.com/apis/site/v2/sports/{quote(path_sport)}/{quote(league)}/summary?event={quote(str(out['upstream_id']))}"
-                        summary=fetch_json(summary_url, timeout=4)
+                        summary=fetch_json(summary_url)
                         out["summary_available"]=True
                         # Keep the useful parts of the live response, but only expose
                         # links that ESPN actually returned. Nothing is invented here.
@@ -636,6 +687,27 @@ class Handler(BaseHTTPRequestHandler):
                         out["summary_available"]=False; out["summary_error"]=str(ex)[:180]
             self.send_json(out); return
 
+        if path == "/api/directory":
+            schools_rows = DB.execute("SELECT sport,name,logo,url,conference FROM schools ORDER BY sport,name").fetchall()
+            sports, conferences = {}, {}
+            for r in schools_rows:
+                item={"name":r["name"],"logo":r["logo"] or "","url":r["url"] or "","conference":r["conference"] or ""}
+                sports.setdefault(r["sport"],{})[r["name"]]=item
+                if r["conference"]:
+                    conferences.setdefault(r["conference"],{})[r["name"]]=item
+            # Include teams seen in verified schedule events, even if the provider's team directory was unavailable.
+            rows = DB.execute("SELECT sport,conference,home,away,home_logo,away_logo FROM events ORDER BY sport,conference,home,away").fetchall()
+            for r in rows:
+                sport=r["sport"] or "unknown"
+                sports.setdefault(sport,{})
+                for team,logo in ((r["home"],r["home_logo"]),(r["away"],r["away_logo"])):
+                    if team and team!="TBD": sports[sport].setdefault(team,{"name":team,"logo":logo or "","url":"","conference":r["conference"] or ""})
+                if r["conference"]:
+                    conferences.setdefault(r["conference"],{})
+                    for team,logo in ((r["home"],r["home_logo"]),(r["away"],r["away_logo"])):
+                        if team and team!="TBD": conferences[r["conference"]].setdefault(team,{"name":team,"logo":logo or "","url":"","conference":r["conference"]})
+            self.send_json({"sports":{k:list(v.values()) for k,v in sports.items()},"conferences":{k:list(v.values()) for k,v in conferences.items()},"school_total":sum(len(v) for v in sports.values())})
+            return
         if path == "/api/events":
             now = datetime.now(timezone.utc)
             lo = (now - timedelta(days=1)).isoformat()
@@ -662,5 +734,5 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "10000"))
-    threading.Thread(target=scheduler, daemon=True).start()
+    threading.Thread(target=scheduler, daemon=True, name="refresh-scheduler").start()
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
