@@ -523,11 +523,41 @@ class Handler(BaseHTTPRequestHandler):
                         summary_url=f"https://site.api.espn.com/apis/site/v2/sports/{quote(path_sport)}/{quote(league)}/summary?event={quote(str(out['upstream_id']))}"
                         summary=fetch_json(summary_url)
                         out["summary_available"]=True
+                        # Keep the useful parts of the live response, but only expose
+                        # links that ESPN actually returned. Nothing is invented here.
+                        summary_competitions = summary.get("header",{}).get("competitions",[]) if isinstance(summary.get("header"),dict) else []
+                        summary_comp = summary_competitions[0] if isinstance(summary_competitions,list) and summary_competitions and isinstance(summary_competitions[0],dict) else {}
+                        extra_links = {}
+                        for container in (summary.get("links"), summary_comp.get("links"), summary.get("header",{}).get("links") if isinstance(summary.get("header"),dict) else None):
+                            if isinstance(container,list):
+                                for link in container:
+                                    if isinstance(link,dict) and link.get("href"):
+                                        rel=link.get("rel") or []
+                                        if isinstance(rel,str): rel=[rel]
+                                        for r in rel if isinstance(rel,list) else []:
+                                            extra_links[str(r).lower()]=link["href"]
+                        if extra_links:
+                            merged=dict(out.get("links") or {})
+                            merged.update({k:v for k,v in extra_links.items() if v})
+                            out["links"]=merged
+                        summary_broadcasts = summary.get("broadcasts") or summary_comp.get("broadcasts") or []
+                        if isinstance(summary_broadcasts,list):
+                            names=[]
+                            for b in summary_broadcasts:
+                                if isinstance(b,dict):
+                                    ns=b.get("names") or b.get("name") or []
+                                    if isinstance(ns,str): ns=[ns]
+                                    if isinstance(ns,list): names.extend(str(n.get("name") if isinstance(n,dict) else n) for n in ns if n)
+                                elif isinstance(b,str): names.append(b)
+                            out["broadcasts"]=list(dict.fromkeys((out.get("broadcasts") or [])+[n for n in names if n]))
                         out["summary"]={"plays":summary.get("plays") or [],"leaders":summary.get("leaders") or [],
                             "situation":summary.get("situation") or {},"odds":summary.get("odds") or [],
                             "pickcenter":summary.get("pickcenter") or [],"winprobability":summary.get("winprobability") or [],
                             "broadcasts":summary.get("broadcasts") or [],"news":summary.get("news") or [],
-                            "boxscore":summary.get("boxscore") or {}}
+                            "boxscore":summary.get("boxscore") or {},
+                            "header":summary.get("header") or {},
+                            "gamepackage":summary.get("gamepackage") or {},
+                            "raw":summary}
                     except Exception as ex:
                         out["summary_available"]=False; out["summary_error"]=str(ex)[:180]
             self.send_json(out); return
