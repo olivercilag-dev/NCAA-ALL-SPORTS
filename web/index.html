@@ -49,7 +49,12 @@
         <div class="panel-title">◉ &nbsp;Vremenska zona</div><div id="tzSide"></div>
       </div>
       <div class="panel"><div class="panel-title">▣ &nbsp;Datum</div><div class="mini-ranges" id="ranges"></div></div>
-      <div class="panel"><div class="panel-title">⌕ &nbsp;Pretraga</div><input class="side-search" id="search" placeholder="Pretraži tim, sport, konferenciju ili mesto"></div>
+      <div class="panel filter-panel"><div class="panel-title">⌕ &nbsp;Pretraga</div>
+<input class="side-search" id="search" placeholder="Pretraži tim, sport, konferenciju ili mesto">
+<div class="time-filter-title">Vreme utakmice <small>(u izabranoj zoni)</small></div>
+<div class="time-filter-row"><label>Od<input id="timeFrom" type="time" aria-label="Od"></label><label>Do<input id="timeTo" type="time" aria-label="Do"></label></div>
+<button id="clearFilters" class="clear-filters" type="button">↺ Očisti sve filtere</button>
+</div>
       <div class="panel"><div class="panel-title">◈ &nbsp;Sport</div><select id="sport"></select></div>
     </aside>
     <section class="feed-column" id="schedule">
