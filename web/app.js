@@ -1,4 +1,3 @@
-window.__NCAA_APP_STARTED=false;
 const I18N = {
   en:{sub:"All NCAA events • One chronological feed • UTC",yesterday:"YESTERDAY",today:"TODAY",tomorrow:"TOMORROW",next:"NEXT 7 DAYS",search:"Search team, sport, conference or venue",all:"All sports",events:"events",empty:"No verified events in this period.",loading:"Loading NCAA schedule…",api:"Data service is unavailable",sources:"Sources",confidence:"Data confidence",scheduled:"Scheduled",close:"Close",sport:"Sport",competition:"Competition / Conference",venue:"Venue",links:"Game links",playbyplay:"Play-by-Play",summary:"Summary",score:"Score",broadcast:"Broadcast",notes:"Notes",live:"Live data",no_data:"No verified data available yet",details:"Game Center",stats:"Statistics",leaders:"Leaders",odds:"Odds",winprob:"Win probability",news:"News",raw:"Raw provider data",official:"Official / source",status:"Status",rankings:"Rankings",teams:"Teams",refresh:"Live refresh"},
   sr:{sub:"Svi NCAA događaji • Jedan hronološki feed • UTC",yesterday:"JUČE",today:"DANAS",tomorrow:"SUTRA",next:"SLEDEĆIH 7 DANA",search:"Pretraži tim, sport, konferenciju ili mesto",all:"Svi sportovi",events:"događaja",empty:"Nema potvrđenih događaja u ovom periodu.",loading:"Učitavanje NCAA rasporeda…",api:"Servis podataka nije dostupan",sources:"Izvori",confidence:"Pouzdanost podataka",scheduled:"Zakazano",close:"Zatvori",sport:"Sport",competition:"Takmičenje / Konferencija",venue:"Mesto",links:"Linkovi utakmice",playbyplay:"Play-by-Play",summary:"Sažetak",score:"Rezultat",broadcast:"Prenos",notes:"Napomene",live:"Podaci uživo",no_data:"Još nema potvrđenih podataka",details:"Game Center",stats:"Statistika",leaders:"Najbolji igrači",odds:"Kvote",winprob:"Verovatnoća pobede",news:"Vesti",raw:"Sirovi podaci provajdera",official:"Zvanični / izvor",status:"Status",rankings:"Rangiranje",teams:"Timovi",refresh:"Osvežavanje uživo"},
@@ -23,13 +22,12 @@ const LANGUAGES={en:{flag:"gb",name:"English"},sr:{flag:"rs",name:"Srpski"},es:{
 const SPORTS={football:"Football",basketball:"Basketball",soccer:"Soccer",baseball:"Baseball",volleyball:"Volleyball",softball:"Softball",ice_hockey:"Ice Hockey",field_hockey:"Field Hockey",lacrosse:"Lacrosse",wrestling:"Wrestling",gymnastics:"Gymnastics",track_field:"Track & Field",swimming_diving:"Swimming & Diving",cross_country:"Cross Country",water_polo:"Water Polo",rowing:"Rowing",golf:"Golf",fencing:"Fencing",bowling:"Bowling",rifle:"Rifle",skiing:"Skiing",beach_volleyball:"Beach Volleyball"};
 const SPORT_ALIASES={college_football:"football",ncaaf:"football",american_football:"football",mens_soccer:"soccer",womens_soccer:"soccer",mens_college_basketball:"basketball",womens_college_basketball:"basketball",ncaab:"basketball",womens_college_volleyball:"volleyball",mens_college_volleyball:"volleyball",college_baseball:"baseball",college_softball:"softball",mens_college_hockey:"ice_hockey",womens_college_hockey:"ice_hockey",hockey:"ice_hockey",beach_volleyball:"beach_volleyball",beach_volley:"beach_volleyball",track_and_field:"track_field",swimming_and_diving:"swimming_diving"};
 function canonicalSport(v){return SPORT_ALIASES[String(v||"").toLowerCase()]||String(v||"").toLowerCase()}
-const STORE={get(k,d=""){try{return localStorage.getItem(k)??d}catch(_){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(_){}},remove(k){try{localStorage.removeItem(k)}catch(_){}}};
-let lang=STORE.get("ncaaLang")||navigator.language.slice(0,2);if(!I18N[lang])lang="en";
+let lang=localStorage.getItem("ncaaLang")||navigator.language.slice(0,2);if(!I18N[lang])lang="en";
 const NCAA_CONFERENCES=[
 "ACC","American Athletic Conference","America East","ASUN Conference","Atlantic 10","Atlantic Coast Conference","Big 12","Big East","Big Sky","Big South","Big Ten","Big West","CAA","Coastal Athletic Association","Conference USA","Horizon League","Ivy League","MAAC","MAC","Metro Atlantic Athletic Conference","Mid-American Conference","Missouri Valley Conference","Mountain West","Northeast Conference","Ohio Valley Conference","Pac-12","Patriot League","SEC","SoCon","Southland Conference","Summit League","Sun Belt","SWAC","WAC","West Coast Conference","Western Athletic Conference","ASUN","Big East Conference","Colonial Athletic Association","America's East Conference","Atlantic Sun","Big South Conference","Southwestern Athletic Conference","Missouri Valley Football Conference","Pioneer Football League","Southern Conference","Southland","United Athletic Conference","Central Intercollegiate Athletic Association","Gulf South Conference","Lone Star Conference","Mid-America Intercollegiate Athletics Association","Great American Conference","Rocky Mountain Athletic Conference","Pennsylvania State Athletic Conference","Sunshine State Conference","Peach Belt Conference","Great Lakes Valley Conference","Great Lakes Intercollegiate Athletic Conference","Midwest Region Conference","Northern Sun Intercollegiate Conference","Mountain East Conference","South Atlantic Conference","Conference Carolinas","Gulf South","Lone Star","RMAC","PSAC","GLVC","GLIAC","NSIC","MEC","SAC","CIAA","SIAC","Southern Intercollegiate Athletic Conference","Northeast-10","NE10","Central Atlantic Collegiate Conference","CACC","East Coast Conference","ECC","Great Northeast Athletic Conference","GNAC","New England Women's and Men's Athletic Conference","NEWMAC","University Athletic Association","UAA","Southern Athletic Association","SAA","Centennial Conference","North Coast Athletic Conference","NCAC","Old Dominion Athletic Conference","ODAC","Presidents' Athletic Conference","PAC","New England Small College Athletic Conference","NESCAC","Commonwealth Coast Conference","CCC","Landmark Conference","Liberty League","Skyline Conference","USA South","American Rivers Conference","College Conference of Illinois and Wisconsin","CCIW","Midwest Conference","Michigan Intercollegiate Athletic Association","MIAA","Ohio Athletic Conference","OAC","Heartland Collegiate Athletic Conference","HCAC","Southern Collegiate Athletic Conference","SCAC","Southern California Intercollegiate Athletic Conference","SCIAC","Northwest Conference","NWC","Cascade Collegiate Conference","California Collegiate Athletic Association","CCAA","PacWest","Pacific West Conference","Great Northwest Athletic Conference","GNAC","Rocky Mountain Athletic Conference","RMAC","NCHC","Hockey East","ECAC Hockey","CCHA","Atlantic Hockey America","Big Ten Hockey","EIVA","MIVA","MPSF","EAGL","MRGC","NCAA Independent"]
 NCAA_CONFERENCES=list(dict.fromkeys(NCAA_CONFERENCES))
 
-let range="next",events=Array.isArray(window.NCAA_BOOTSTRAP_EVENTS)?window.NCAA_BOOTSTRAP_EVENTS.map(e=>({...e,sport:canonicalSport(e.sport)})):[];let directory={sports:{},conferences:{}};let schoolQuery="";let timezone=STORE.get("ncaaTimezone")||"UTC";let timeFrom="",timeTo="";let selectedZones=["UTC"];try{const saved=JSON.parse(STORE.get("ncaaSelectedZones","null"));if(Array.isArray(saved)&&saved.length)selectedZones=saved}catch(_){STORE.remove("ncaaSelectedZones")}if(!selectedZones.includes("UTC"))selectedZones.unshift("UTC");selectedZones=[...new Set(selectedZones)].slice(0,5);
+let range="today",events=[];let directory={sports:{},conferences:{}};let schoolQuery="";let timezone=localStorage.getItem("ncaaTimezone")||"UTC";let timeFrom="",timeTo="";let selectedZones=["UTC"];try{const saved=JSON.parse(localStorage.getItem("ncaaSelectedZones")||"null");if(Array.isArray(saved)&&saved.length)selectedZones=saved}catch(_){localStorage.removeItem("ncaaSelectedZones")}if(!selectedZones.includes("UTC"))selectedZones.unshift("UTC");selectedZones=[...new Set(selectedZones)].slice(0,5);
 const $=id=>document.getElementById(id);
 const ULTIMATE_EN={
   official_school:"Official school",official_schedule:"Official schedule",search_official:"Find official school",
@@ -52,7 +50,7 @@ function zoneLabel(z){if(z==="UTC")return "UTC";return z.replaceAll("_"," ")}
 function flag(c){return `<img class="flag" src="/flags/${LANGUAGES[c].flag}.svg" alt="" loading="lazy">`}
 
 function setDirection(){document.documentElement.dir=lang==="he"?"rtl":"ltr";document.documentElement.lang=lang}
-function selectLanguage(c){lang=c;STORE.set("ncaaLang",lang);setDirection();renderLanguagePicker();render()}
+function selectLanguage(c){lang=c;localStorage.setItem("ncaaLang",lang);setDirection();renderLanguagePicker();render()}
 function renderLanguagePicker(){const box=$("lang");if(!box)return;const current=LANGUAGES[lang];box.innerHTML=`<button class="lang-current" type="button" aria-expanded="false">${flag(lang)}<span>${current.name}</span><span class="lang-arrow">▾</span></button><div class="lang-menu">${Object.entries(LANGUAGES).map(([c,i])=>`<button class="lang-option ${c===lang?"selected":""}" type="button" data-lang="${c}">${flag(c)}<span>${i.name}</span></button>`).join("")}</div>`;const btn=box.querySelector(".lang-current");btn.onclick=()=>{box.classList.toggle("open");btn.setAttribute("aria-expanded",box.classList.contains("open"))};box.querySelectorAll(".lang-option").forEach(b=>b.onclick=()=>{selectLanguage(b.dataset.lang);box.classList.remove("open")});document.addEventListener("click",e=>{if(!box.contains(e.target))box.classList.remove("open")})}
 function renderTimezonePicker(){
   const box=$("tz"); if(!box)return;
@@ -74,7 +72,7 @@ function renderTimezonePicker(){
     else matches=matches.slice(0,10);
     results.innerHTML=matches.length?matches.map(z=>`<button type="button" class="tz-option ${z===timezone?"selected":""}" data-zone="${esc(z)}"><span>${z==="UTC"?"🌐":"◉"}</span><strong>${esc(zoneLabel(z))}</strong>${z===timezone?"<b>✓</b>":""}</button>`).join(""):`<div class="tz-no-results">No matching time zones.</div>`;
     results.querySelectorAll(".tz-option").forEach(btn=>btn.onclick=()=>{
-      timezone=btn.dataset.zone||"UTC"; STORE.set("ncaaTimezone",timezone); closeTimezoneMenus(); render(); clock();
+      timezone=btn.dataset.zone||"UTC"; localStorage.setItem("ncaaTimezone",timezone); closeTimezoneMenus(); render(); clock();
     });
   };
   current.onclick=()=>{const open=box.classList.toggle("open");current.setAttribute("aria-expanded",String(open));if(open){input.value="";paint();setTimeout(()=>input.focus(),0)}};
@@ -91,14 +89,14 @@ function renderSideTimezone(){
   box.innerHTML=`<div class="zone-current"><span>Selected zone</span><strong>${esc(zoneLabel(timezone))}</strong></div><button type="button" class="side-zone-change" id="sideZoneChange">⌕ Search / change time zone</button><div class="zone-note">Event times stay in UTC until you explicitly choose another zone.</div>`;
   $("sideZoneChange").onclick=()=>{const top=$("tzCurrent");if(top){top.click();setTimeout(()=>$("tzSearch")?.focus(),0)}};
 }
-function saveSelectedZones(){STORE.set("ncaaSelectedZones",JSON.stringify(selectedZones))}
+function saveSelectedZones(){localStorage.setItem("ncaaSelectedZones",JSON.stringify(selectedZones))}
 function zoneSearchMatches(q){const zones=zoneList();const query=String(q||"").trim().toLowerCase();const pool=zones.filter(z=>!selectedZones.includes(z));if(!query)return pool.slice(0,8);return pool.filter(z=>z.toLowerCase().replaceAll("_"," ").includes(query)||zoneLabel(z).toLowerCase().includes(query)).slice(0,10)}
 function renderZoneBuilder(){
   const chips=$("zoneChips"),input=$("zoneAddSearch"),results=$("zoneAddResults"); if(!chips||!input||!results)return;
   chips.innerHTML=selectedZones.map(z=>`<button type="button" class="zone-chip ${z===timezone?"primary":""}" data-zone="${esc(z)}" title="Use ${esc(zoneLabel(z))} as display zone"><span>${z===timezone?"●":"○"}</span><strong>${esc(zoneLabel(z))}</strong><b data-remove="${esc(z)}">${z==="UTC"?"":"×"}</b></button>`).join("");
-  chips.querySelectorAll(".zone-chip").forEach(btn=>{btn.onclick=e=>{if(e.target.dataset.remove!==undefined&&btn.dataset.zone!=="UTC"){selectedZones=selectedZones.filter(z=>z!==btn.dataset.zone);if(timezone===btn.dataset.zone)timezone="UTC";saveSelectedZones();renderZoneBuilder();render();clock();return} timezone=btn.dataset.zone;STORE.set("ncaaTimezone",timezone);saveSelectedZones();renderZoneBuilder();render();clock();}});
-  const paint=(q="")=>{const matches=zoneSearchMatches(q);results.innerHTML=matches.length?matches.map(z=>`<button type="button" class="zone-add-option" data-zone="${esc(z)}"><span>＋</span><strong>${esc(zoneLabel(z))}</strong><small>${esc(z)}</small></button>`).join(""):q?`<div class="zone-add-empty">No matching time zone.</div>`:"";results.hidden=!matches.length;results.querySelectorAll(".zone-add-option").forEach(b=>b.onclick=()=>{const z=b.dataset.zone;if(!selectedZones.includes(z)&&selectedZones.length<5)selectedZones.push(z);timezone=z;STORE.set("ncaaTimezone",timezone);saveSelectedZones();input.value="";results.hidden=true;renderZoneBuilder();render();clock();});};
-  input.onfocus=()=>paint(input.value);input.oninput=e=>paint(e.target.value);$("zoneAddBtn")&&( $("zoneAddBtn").onclick=()=>{const z=zoneSearchMatches(input.value)[0];if(z){if(selectedZones.length<5)selectedZones.push(z);timezone=z;STORE.set("ncaaTimezone",timezone);saveSelectedZones();input.value="";results.hidden=true;renderZoneBuilder();render();clock();}});
+  chips.querySelectorAll(".zone-chip").forEach(btn=>{btn.onclick=e=>{if(e.target.dataset.remove!==undefined&&btn.dataset.zone!=="UTC"){selectedZones=selectedZones.filter(z=>z!==btn.dataset.zone);if(timezone===btn.dataset.zone)timezone="UTC";saveSelectedZones();renderZoneBuilder();render();clock();return} timezone=btn.dataset.zone;localStorage.setItem("ncaaTimezone",timezone);saveSelectedZones();renderZoneBuilder();render();clock();}});
+  const paint=(q="")=>{const matches=zoneSearchMatches(q);results.innerHTML=matches.length?matches.map(z=>`<button type="button" class="zone-add-option" data-zone="${esc(z)}"><span>＋</span><strong>${esc(zoneLabel(z))}</strong><small>${esc(z)}</small></button>`).join(""):q?`<div class="zone-add-empty">No matching time zone.</div>`:"";results.hidden=!matches.length;results.querySelectorAll(".zone-add-option").forEach(b=>b.onclick=()=>{const z=b.dataset.zone;if(!selectedZones.includes(z)&&selectedZones.length<5)selectedZones.push(z);timezone=z;localStorage.setItem("ncaaTimezone",timezone);saveSelectedZones();input.value="";results.hidden=true;renderZoneBuilder();render();clock();});};
+  input.onfocus=()=>paint(input.value);input.oninput=e=>paint(e.target.value);$("zoneAddBtn")&&( $("zoneAddBtn").onclick=()=>{const z=zoneSearchMatches(input.value)[0];if(z){if(selectedZones.length<5)selectedZones.push(z);timezone=z;localStorage.setItem("ncaaTimezone",timezone);saveSelectedZones();input.value="";results.hidden=true;renderZoneBuilder();render();clock();}});
   if(!window.__ncaaZoneBuilderOutside){document.addEventListener("click",e=>{if(!e.target.closest("#zoneBuilder")){const r=$("zoneAddResults");if(r)r.hidden=true}});window.__ncaaZoneBuilderOutside=true}
 }
 function zoneTime(iso){return formatZone(iso,timezone,true)}
@@ -186,7 +184,13 @@ function setup(){
       else if(!$('modal').classList.contains('hidden')) closeGameCenter();
     }
   });
-  document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>{document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));b.classList.add("active");const id=b.dataset.jump;if(id==="schedule")$("schedule").scrollIntoView({behavior:"smooth",block:"start"});else if(id==="settings")$("settings").scrollIntoView({behavior:"smooth",block:"center"});else $("home").scrollIntoView({behavior:"smooth",block:"start"})});
+  const navTargets={home:"home",schedule:"schedule",teams:"schoolDirectory",conferences:"conferencePanel",standings:"standingsPanel",news:"newsPanel",settings:"settings"};
+  document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    const target=$(navTargets[b.dataset.jump]||"home");
+    if(target) target.scrollIntoView({behavior:"smooth",block:"start"});
+  });
 }
 
 function applyTexts(){
@@ -260,7 +264,7 @@ function render(){
   const offset=range==='yesterday'?-1:range==='tomorrow'?1:0;
   let days=[];
   if(range==='next'){
-    for(let i=0;i<=7;i++){const d=new Date(base);d.setUTCDate(d.getUTCDate()+i);days.push(dayKey(d))}
+    for(let i=1;i<=7;i++){const d=new Date(base);d.setUTCDate(d.getUTCDate()+i);days.push(dayKey(d))}
   }else{
     const d=new Date(base);d.setUTCDate(d.getUTCDate()+offset);days=[dayKey(d)]
   }
@@ -479,37 +483,34 @@ async function loadHealth(){
 }
 async function load(){
   loadHealth();
-  // Bootstrap data is already present in the page, so the schedule is usable
-  // immediately even if the live API is slow or temporarily unavailable.
-  if(events.length) render();
   try{
     const response=await fetch("/api/events",{cache:"no-store",headers:{Accept:"application/json"}});
     if(!response.ok)throw new Error("HTTP "+response.status);
     const data=await response.json();
     if(!Array.isArray(data))throw new Error("Invalid API response");
-    if(data.length){
-      events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));
-      render();
-    }
+    events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));
+    render();
     loadDirectory().then(()=>render()).catch(()=>{});
   }catch(error){
-    console.warn("Live API unavailable; using bundled presentation data",error);
-    if(!events.length && Array.isArray(window.NCAA_BOOTSTRAP_EVENTS)){
-      events=window.NCAA_BOOTSTRAP_EVENTS.map(e=>({...e,sport:canonicalSport(e.sport)}));
+    console.warn("Live API unavailable; loading bundled verified presentation data",error);
+    try{
+      const fallback=await fetch("/data/events_snapshot.json",{cache:"no-store",headers:{Accept:"application/json"}});
+      if(!fallback.ok)throw new Error("Snapshot HTTP "+fallback.status);
+      const data=await fallback.json();
+      if(!Array.isArray(data))throw new Error("Invalid snapshot");
+      events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));
       render();
+      const box=$("status");
+      if(box){box.className="data-engine-status refreshing";$("engineStatusText").textContent=`Presentation data online • ${events.length} verified events • live service reconnecting…`;}
+      loadDirectory().then(()=>render()).catch(()=>{});
+    }catch(fallbackError){
+      console.error("NCAA snapshot:",fallbackError);
+      events=[];
+      $("feed").innerHTML=`<div class="empty">${t("api")}<br><br><small>Live data engine is reconnecting. Please refresh in a moment.</small></div>`;
     }
-    const box=$("status"); if(box){box.className='data-engine-status refreshing'; $("engineStatusText").textContent=`Presentation data online • ${events.length} verified events • live service reconnecting…`;}
-    loadDirectory().then(()=>render()).catch(()=>{});
   }
 }
-
 function clock(){const d=new Date();const utc=d.toISOString().replace("T"," ").slice(0,19)+" UTC";$("clock").innerHTML=`<span class="clock-main">${esc(utc)}</span><span class="clock-utc">Primary time • UTC</span>`}
-function dismissSplash(){const s=document.getElementById("brandSplash");if(!s)return;s.classList.add("splash-hide");setTimeout(()=>s.remove(),500)}
-setDirection();
-try{setup();}catch(err){console.error("NCAA UI setup:",err);}
-window.__NCAA_APP_STARTED=true;
-// Never let the presentation splash block the actual application, even if a browser
-// extension, cached asset, or optional UI feature causes a startup exception.
-setTimeout(dismissSplash,700);
-try{document.querySelector('#ranges button[data-r="today"]')?.classList.add("active");}catch(_){}
-load();clock();setInterval(clock,1000);setInterval(load,30000);setInterval(loadHealth,10000);
+setDirection();setup();
+setTimeout(()=>{const s=document.getElementById("brandSplash");if(s){s.classList.add("splash-hide");setTimeout(()=>s.remove(),500)}},1400);
+document.querySelector('#ranges button[data-r="today"]').classList.add("active");load();clock();setInterval(clock,1000);setInterval(load,30000);setInterval(loadHealth,10000);
