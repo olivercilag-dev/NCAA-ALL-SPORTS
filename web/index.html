@@ -52,19 +52,13 @@
       <div class="panel filter-panel">
         <div class="panel-title">⌕ &nbsp;Smart Filters</div>
         <input class="side-search" id="search" placeholder="Search team, sport, conference or venue">
-        <div class="time-filter-title">TIME FILTER <small>(build your own view)</small></div>
+        <div class="time-filter-title">GAME TIME <small>(selected timezone)</small></div>
         <div class="time-filter-row"><label>FROM<input id="timeFrom" type="time" aria-label="From"></label><label>TO<input id="timeTo" type="time" aria-label="To"></label></div>
-        <div class="zone-builder" id="zoneBuilder">
-          <div class="zone-builder-label">TIME ZONES <small>select only what you need</small></div>
-          <div class="zone-chips" id="zoneChips"></div>
-          <div class="zone-add-wrap"><span>＋</span><input id="zoneAddSearch" type="search" autocomplete="off" placeholder="Add time zone…" aria-label="Add time zone"><button id="zoneAddBtn" type="button">ADD</button></div>
-          <div id="zoneAddResults" class="zone-add-results"></div>
-        </div>
         <button id="clearFilters" class="clear-filters" type="button">↺ Clear all filters</button>
       </div>
       <div class="panel"><div class="panel-title">◈ &nbsp;Sport</div><select id="sport"></select></div>
-      <div class="panel" id="conferencePanel"><div class="panel-title">◇ &nbsp;Conference</div><select id="conference"><option value="">All Conferences</option></select></div>
-      <div class="panel schools-panel" id="schoolDirectory"><div class="panel-title">⌂ &nbsp;Schools in selection <span id="schoolCount">0</span></div><input id="schoolSearch" class="side-search school-search" placeholder="Search school…" autocomplete="off"><div id="schoolList" class="school-list"><div class="empty mini-empty">Choose a sport or conference</div></div></div>
+      <div class="panel"><div class="panel-title">◇ &nbsp;Conference</div><select id="conference"><option value="">All Conferences</option></select></div>
+      <div class="panel schools-panel"><div class="panel-title">⌂ &nbsp;Schools in selection <span id="schoolCount">0</span></div><input id="schoolSearch" class="side-search school-search" placeholder="Search school…" autocomplete="off"><div id="schoolList" class="school-list"><div class="empty mini-empty">Choose a sport or conference</div></div></div>
     </aside>
 
     <section class="feed-column" id="schedule">
@@ -74,14 +68,13 @@
 
     <aside class="right-sidebar">
       <div class="featured panel" id="featured"></div>
-      <div class="panel quick-links" id="newsPanel"><div class="panel-title">▣ &nbsp;Explore NCAA</div>
+      <div class="panel quick-links" id="teams"><div class="panel-title">▣ &nbsp;Explore NCAA</div>
         <a href="https://www.ncaa.com/" target="_blank" rel="noopener"><strong>NCAA</strong><span>Official site ›</span></a>
         <a href="https://www.espn.com/college-sports/" target="_blank" rel="noopener"><strong>ESPN</strong><span>Scores & schedules ›</span></a>
         <a href="https://www.ncaa.com/sports" target="_blank" rel="noopener"><strong>NCAA SPORTS</strong><span>All sports ›</span></a>
         <a href="https://www.ncaa.com/standings" target="_blank" rel="noopener"><strong>STANDINGS</strong><span>Rankings ›</span></a>
         <a href="https://www.ncaa.com/news" target="_blank" rel="noopener"><strong>NEWS</strong><span>Latest updates ›</span></a>
       </div>
-      <div class="panel standings-panel" id="standingsPanel"><div class="panel-title">▥ &nbsp;Standings & rankings</div><div class="hub-link-grid"><a href="https://www.ncaa.com/standings" target="_blank" rel="noopener"><strong>NCAA Standings</strong><span>Official rankings ↗</span></a><a href="https://www.espn.com/college-sports/standings" target="_blank" rel="noopener"><strong>ESPN Standings</strong><span>College standings ↗</span></a></div></div>
       <div class="panel right-brand"><img src="/assets/ncaa-all-sports-logo.png" alt="NCAA All Sports"><strong>NCAA ALL SPORTS</strong><small>ONE PLATFORM • ONE CHRONOLOGICAL FEED • UTC</small></div>
     </aside>
   </section>
@@ -89,7 +82,8 @@
 
 <footer class="site-footer"><strong>NCAA ALL SPORTS</strong><span>Independent sports-information interface • 2026</span><small>Not affiliated with or endorsed by NCAA, ESPN, conferences or universities.</small></footer>
 <div id="commandPalette" class="command-palette hidden" role="dialog" aria-modal="true" aria-label="Search NCAA"><div class="command-box"><button id="commandClose" class="command-close" aria-label="Close">×</button><div class="command-kicker">NCAA ALL SPORTS SEARCH</div><h2>Find anything</h2><p>Teams, schools, sports, conferences or games</p><div class="command-input-wrap"><span>⌕</span><input id="commandInput" autocomplete="off" placeholder="Start typing…"><kbd>ESC</kbd></div><div id="commandSuggestions" class="command-suggestions"></div></div></div>
+<div id="hubModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="hubTitle"><div class="dialog hub-dialog"><button id="hubClose" aria-label="Close">×</button><div class="eyebrow">NCAA ALL SPORTS</div><h2 id="hubTitle"></h2><div id="hubBody"></div></div></div>
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true"><div class="dialog"><button id="close" aria-label="Close">×</button><div id="detail"></div></div></div>
-<script src="/app.js"></script>
+<script src="/app.js?v=final-working-1"></script>
 </body>
 </html>
