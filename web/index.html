@@ -11,6 +11,15 @@
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+<script>
+(function(){
+  function hideSplash(){var s=document.getElementById("brandSplash");if(s){s.classList.add("splash-hide");setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s)},550)}}
+  window.__hideNCAA_Splash=hideSplash;
+  setTimeout(hideSplash,1800);
+  window.addEventListener("error",hideSplash);
+  window.addEventListener("unhandledrejection",hideSplash);
+})();
+</script>
 <header class="topbar">
   <div class="brand-wrap">
     <img class="site-logo site-logo-header" src="/assets/ncaa-all-sports-logo.png" alt="NCAA All Sports">
@@ -84,6 +93,45 @@
 <div id="commandPalette" class="command-palette hidden" role="dialog" aria-modal="true" aria-label="Search NCAA"><div class="command-box"><button id="commandClose" class="command-close" aria-label="Close">×</button><div class="command-kicker">NCAA ALL SPORTS SEARCH</div><h2>Find anything</h2><p>Teams, schools, sports, conferences or games</p><div class="command-input-wrap"><span>⌕</span><input id="commandInput" autocomplete="off" placeholder="Start typing…"><kbd>ESC</kbd></div><div id="commandSuggestions" class="command-suggestions"></div></div></div>
 <div id="hubModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="hubTitle"><div class="dialog hub-dialog"><button id="hubClose" aria-label="Close">×</button><div class="eyebrow">NCAA ALL SPORTS</div><h2 id="hubTitle"></h2><div id="hubBody"></div></div></div>
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true"><div class="dialog"><button id="close" aria-label="Close">×</button><div id="detail"></div></div></div>
-<script src="/app.js?v=final-working-1"></script>
+<script src="/app.js?v=final-functional-20260910"></script>
+<script>
+(function(){
+  // Last-resort presentation boot. It never replaces a working app; it only
+  // prevents a frontend exception/network race from leaving the user on the splash.
+  function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]})}
+  function hide(){if(window.__hideNCAA_Splash)window.__hideNCAA_Splash();}
+  function todayUTC(){return new Date().toISOString().slice(0,10)}
+  function card(e){
+    var time=(e.start_utc||"").slice(11,16);
+    var al=e.away_logo?'<img class="team-logo" src="'+esc(e.away_logo)+'" alt="" loading="lazy">':'<span class="team-logo-fallback">'+esc((e.away||"N").slice(0,1))+'</span>';
+    var hl=e.home_logo?'<img class="team-logo" src="'+esc(e.home_logo)+'" alt="" loading="lazy">':'<span class="team-logo-fallback">'+esc((e.home||"N").slice(0,1))+'</span>';
+    return '<article class="event-card" data-fallback-event="'+esc(e.id)+'"><div class="event-time"><strong>'+esc(time)+'</strong><small>UTC</small></div><div class="event-teams"><div>'+al+'<span>'+esc(e.away||"TBD")+'</span></div><b>'+esc((e.away_score??"—"))+ ' : '+esc((e.home_score??"—"))+'</b><div>'+hl+'<span>'+esc(e.home||"TBD")+'</span></div></div><div class="event-actions"><button type="button" class="fallback-game" data-id="'+esc(e.id)+'">Game Center →</button><small>'+esc(e.sport||"")+' • '+esc(e.status||"Scheduled")+'</small></div></article>';
+  }
+  function detail(e){
+    var m=document.getElementById("modal"),d=document.getElementById("detail"); if(!m||!d)return;
+    var links='';
+    if(e.source_url)links+='<a class="detail-link" href="'+esc(e.source_url)+'" target="_blank" rel="noopener">Source ↗</a>';
+    var aq='https://www.google.com/search?q='+encodeURIComponent((e.home||"")+" official athletics");
+    var bq='https://www.google.com/search?q='+encodeURIComponent((e.away||"")+" official athletics");
+    links+='<a class="detail-link" href="'+aq+'" target="_blank" rel="noopener">'+esc(e.home||"Home")+' official ↗</a><a class="detail-link" href="'+bq+'" target="_blank" rel="noopener">'+esc(e.away||"Away")+' official ↗</a>';
+    d.innerHTML='<div class="gc-head"><div><div class="eyebrow">GAME CENTER</div><h2>'+esc(e.home||"TBD")+' <span>vs</span> '+esc(e.away||"TBD")+'</h2><div class="gc-status">'+esc(e.status||"Scheduled")+'</div></div><div class="scoreline"><div><span class="score-team">'+esc(e.home||"TBD")+'</span><b>'+esc(e.home_score??"—")+'</b></div><span class="score-sep">:</span><div><b>'+esc(e.away_score??"—")+'</b><span class="score-team">'+esc(e.away||"TBD")+'</span></div></div></div><div class="info-grid"><div><label>Sport</label><strong>'+esc(e.sport||"")+'</strong></div><div><label>UTC</label><strong>'+esc(e.start_utc||"")+'</strong></div><div><label>Competition</label><strong>'+esc(e.competition||"NCAA")+'</strong></div><div><label>Venue</label><strong>'+esc(e.venue||"TBD")+'</strong></div><div><label>Source</label><strong>'+esc(e.source||"Verified provider")+'</strong></div><div><label>Confidence</label><strong>'+Math.round((Number(e.confidence)||0)*100)+'%</strong></div></div><div class="gc-section"><h3>Game links</h3><div class="official-buttons">'+links+'</div></div>';
+    m.classList.remove("hidden");document.body.classList.add("modal-open");
+  }
+  function wire(data){
+    var feed=document.getElementById("feed"); if(!feed)return;
+    var today=todayUTC(); var list=data.filter(function(e){return (e.start_utc||"").slice(0,10)===today}).sort(function(a,b){return new Date(a.start_utc)-new Date(b.start_utc)});
+    if(!list.length) list=data.slice().sort(function(a,b){return new Date(a.start_utc)-new Date(b.start_utc)}).slice(0,60);
+    feed.innerHTML=list.map(card).join("");
+    feed.querySelectorAll(".fallback-game").forEach(function(b){b.onclick=function(){var e=data.find(function(x){return x.id===b.dataset.id});if(e)detail(e)}});
+    document.querySelectorAll(".sport-tile").forEach(function(b){b.onclick=function(){var sp=b.dataset.sp||"";var arr=sp?data.filter(function(e){return e.sport===sp}):data;feed.innerHTML=arr.slice().sort(function(a,b){return new Date(a.start_utc)-new Date(b.start_utc)}).slice(0,120).map(card).join("");feed.querySelectorAll(".fallback-game").forEach(function(x){x.onclick=function(){var e=data.find(function(z){return z.id===x.dataset.id});if(e)detail(e)}})}});
+    hide();
+  }
+  setTimeout(function(){
+    var feed=document.getElementById("feed");
+    if(!feed || feed.querySelector("article"))return;
+    fetch("/events_snapshot.json",{cache:"no-store"}).then(function(r){return r.json()}).then(function(data){if(Array.isArray(data)&&data.length)wire(data)}).catch(function(){});
+  },1200);
+})();
+</script>
 </body>
 </html>
