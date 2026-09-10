@@ -18,7 +18,7 @@ SPORTS = {
     "ice_hockey":"#3b82f6", "field_hockey":"#a16207", "track_field":"#7dd3fc",
     "swimming_diving":"#06b6d4", "wrestling":"#f59e0b", "gymnastics":"#8b5cf6",
     "lacrosse":"#14b8a6", "cross_country":"#84cc16", "water_polo":"#0ea5e9",
-    "rowing":"#64748b", "golf":"#65a30d", "fencing":"#94a3b8"
+    "rowing":"#64748b", "golf":"#65a30d", "fencing":"#94a3b8", "bowling":"#38bdf8", "rifle":"#a78bfa", "skiing":"#60a5fa", "beach_volleyball":"#fbbf24"
 }
 ALLOWED_SPORTS = set(SPORTS)
 
@@ -127,7 +127,7 @@ def normalize_sport(v):
         "track_field":"track_field", "swimming":"swimming_diving", "swimming_and_diving":"swimming_diving",
         "wrestling":"wrestling", "gymnastics":"gymnastics", "lacrosse":"lacrosse",
         "cross_country":"cross_country", "water_polo":"water_polo", "rowing":"rowing",
-        "golf":"golf", "fencing":"fencing"
+        "golf":"golf", "fencing":"fencing", "bowling":"bowling", "rifle":"rifle", "skiing":"skiing", "beach_volleyball":"beach_volleyball", "beach_volley":"beach_volleyball"
     }
     return aliases.get(s, s)
 

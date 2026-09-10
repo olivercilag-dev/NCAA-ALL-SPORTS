@@ -52,8 +52,14 @@
       <div class="panel filter-panel">
         <div class="panel-title">⌕ &nbsp;Smart Filters</div>
         <input class="side-search" id="search" placeholder="Search team, sport, conference or venue">
-        <div class="time-filter-title">GAME TIME <small>(selected timezone)</small></div>
+        <div class="time-filter-title">TIME FILTER <small>(build your own view)</small></div>
         <div class="time-filter-row"><label>FROM<input id="timeFrom" type="time" aria-label="From"></label><label>TO<input id="timeTo" type="time" aria-label="To"></label></div>
+        <div class="zone-builder" id="zoneBuilder">
+          <div class="zone-builder-label">TIME ZONES <small>select only what you need</small></div>
+          <div class="zone-chips" id="zoneChips"></div>
+          <div class="zone-add-wrap"><span>＋</span><input id="zoneAddSearch" type="search" autocomplete="off" placeholder="Add time zone…" aria-label="Add time zone"><button id="zoneAddBtn" type="button">ADD</button></div>
+          <div id="zoneAddResults" class="zone-add-results"></div>
+        </div>
         <button id="clearFilters" class="clear-filters" type="button">↺ Clear all filters</button>
       </div>
       <div class="panel"><div class="panel-title">◈ &nbsp;Sport</div><select id="sport"></select></div>
