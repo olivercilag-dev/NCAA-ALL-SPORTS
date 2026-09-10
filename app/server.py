@@ -9,6 +9,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, "web")
 DB_PATH = os.environ.get("DATABASE_PATH", os.path.join(ROOT, "data", "ncaa.sqlite3"))
 REFRESH_MINUTES = max(10, int(os.environ.get("REFRESH_MINUTES", "15")))
+TEAM_SYNC_MINUTES = max(15, int(os.environ.get("TEAM_SYNC_MINUTES", "15")))
+SNAPSHOT_FILE = os.environ.get("SNAPSHOT_FILE", os.path.join(ROOT, "data", "events_snapshot.json"))
 FETCH_DAYS_BEFORE = 1
 FETCH_DAYS_AFTER = 7
 
@@ -80,6 +82,7 @@ def db():
     c.execute("""CREATE TABLE IF NOT EXISTS schools(
         id TEXT PRIMARY KEY, sport TEXT NOT NULL, name TEXT NOT NULL,
         abbreviation TEXT, logo TEXT, url TEXT, conference TEXT, source TEXT,
+        first_seen_utc TEXT, last_seen_utc TEXT, event_count INTEGER DEFAULT 0,
         updated_at TEXT NOT NULL
     )""")
     # Non-destructive migration for V1-V4 databases.
@@ -91,6 +94,10 @@ def db():
     ]:
         if col not in existing_cols:
             c.execute(f"ALTER TABLE events ADD COLUMN {col} {typ}")
+    school_cols = {row[1] for row in c.execute("PRAGMA table_info(schools)").fetchall()}
+    for col, typ in [("first_seen_utc","TEXT"),("last_seen_utc","TEXT"),("event_count","INTEGER DEFAULT 0")]:
+        if col not in school_cols:
+            c.execute(f"ALTER TABLE schools ADD COLUMN {col} {typ}")
 
     # Older builds used fake SEED rows. Never expose them on the live site.
     c.execute("DELETE FROM events WHERE UPPER(COALESCE(source,''))='SEED'")
@@ -99,6 +106,27 @@ def db():
 
 DB = db()
 DB_LOCK = threading.Lock()
+
+def bootstrap_snapshot():
+    try:
+        count = DB.execute("SELECT COUNT(*) c FROM events").fetchone()["c"]
+        if count or not os.path.isfile(SNAPSHOT_FILE):
+            return
+        with open(SNAPSHOT_FILE, "r", encoding="utf-8") as f:
+            rows = json.load(f)
+        if not isinstance(rows, list):
+            return
+        with DB_LOCK:
+            for e in rows:
+                if not isinstance(e, dict) or not e.get("id") or not e.get("start_utc"):
+                    continue
+                DB.execute("""INSERT OR IGNORE INTO events(id,sport,start_utc,home,away,competition,conference,venue,status,source,source_url,confidence,updated_at,raw_hash,upstream_id,links_json,home_score,away_score,home_rank,away_rank,broadcasts_json,notes_json,home_logo,away_logo) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+                    e.get("id"), normalize_sport(e.get("sport")), e.get("start_utc"), e.get("home") or "", e.get("away") or "", e.get("competition") or "", e.get("conference") or "", e.get("venue") or "", e.get("status") or "", e.get("source") or "SNAPSHOT", e.get("source_url") or "", e.get("confidence") or 0, e.get("updated_at") or iso_now(), e.get("raw_hash") or "", e.get("upstream_id") or "", e.get("links_json") or "{}", e.get("home_score"), e.get("away_score"), e.get("home_rank"), e.get("away_rank"), e.get("broadcasts_json") or "[]", e.get("notes_json") or "[]", e.get("home_logo") or "", e.get("away_logo") or ""))
+            DB.commit()
+        sync_event_teams()
+    except Exception as ex:
+        print("Snapshot bootstrap failed:", ex, flush=True)
+
 REFRESH_STATE = {"status":"starting", "started_at":iso_now() if "iso_now" in globals() else "", "finished_at":"", "events":0, "error":""}
 REFRESH_STATE_LOCK = threading.Lock()
 
@@ -390,6 +418,29 @@ def fetch_espn_feed(source_name, path_sport, league, date):
     return source_name, parse_espn(payload, normalize_sport(path_sport), source_name), True
 
 
+def sync_event_teams():
+    """Promote every team seen in verified events into the long-lived school/team registry."""
+    now = iso_now()
+    rows = DB.execute("SELECT sport,home,away,home_logo,away_logo,conference FROM events WHERE start_utc IS NOT NULL").fetchall()
+    grouped = {}
+    for r in rows:
+        sport = r["sport"] or "unknown"
+        for team, logo in ((r["home"], r["home_logo"]), (r["away"], r["away_logo"])):
+            if not team or team == "TBD":
+                continue
+            key = (sport, str(team).strip().lower())
+            g = grouped.setdefault(key, {"sport":sport,"name":str(team).strip(),"logo":logo or "","conference":r["conference"] or "","count":0})
+            g["count"] += 1
+            if logo and not g["logo"]: g["logo"] = logo
+            if r["conference"] and not g["conference"]: g["conference"] = r["conference"]
+    with DB_LOCK:
+        for g in grouped.values():
+            sid = hashlib.sha256((g["sport"]+"|"+g["name"]).encode()).hexdigest()[:24]
+            DB.execute("""INSERT INTO schools(id,sport,name,abbreviation,logo,url,conference,source,first_seen_utc,last_seen_utc,event_count,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(id) DO UPDATE SET logo=COALESCE(NULLIF(excluded.logo,''),schools.logo), conference=COALESCE(NULLIF(excluded.conference,''),schools.conference), last_seen_utc=excluded.last_seen_utc, event_count=excluded.event_count, updated_at=excluded.updated_at""", (sid,g["sport"],g["name"],"",g["logo"],"",g["conference"],"verified_event",now,now,g["count"],now))
+        DB.commit()
+
+
 def refresh_espn_teams():
     """Refresh the public ESPN team directory for configured leagues.
     This is a directory cache only; it never fabricates schools or URLs.
@@ -545,6 +596,7 @@ def refresh_all():
     try:
         refresh_espn()
         refresh_custom_sources()
+        sync_event_teams()
         set_refresh_state("ready")
     except Exception as ex:
         set_refresh_state("error", ex)
@@ -734,5 +786,6 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "10000"))
+    bootstrap_snapshot()
     threading.Thread(target=scheduler, daemon=True, name="refresh-scheduler").start()
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
