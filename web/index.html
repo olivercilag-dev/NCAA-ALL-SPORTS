@@ -90,7 +90,7 @@
 <div id="commandPalette" class="command-palette hidden" role="dialog" aria-modal="true" aria-label="Search NCAA"><div class="command-box"><button id="commandClose" class="command-close" aria-label="Close">×</button><div class="command-kicker">NCAA ALL SPORTS SEARCH</div><h2>Find anything</h2><p>Teams, schools, sports, conferences or games</p><div class="command-input-wrap"><span>⌕</span><input id="commandInput" autocomplete="off" placeholder="Start typing…"><kbd>ESC</kbd></div><div id="commandSuggestions" class="command-suggestions"></div></div></div>
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true"><div class="dialog"><button id="close" aria-label="Close">×</button><div id="detail"></div></div></div>
 <script>
-setTimeout(function(){var s=document.getElementById('brandSplash');if(s){s.classList.add('splash-hide');}},1200);
+setTimeout(function(){var s=document.getElementById('brandSplash');if(s){s.classList.add('splash-hide');setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},450);}},900);
 </script>
 <script src="/app.js"></script>
 </body>

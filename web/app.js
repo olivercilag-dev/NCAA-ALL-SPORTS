@@ -475,7 +475,38 @@ async function loadHealth(){
     else {box.className='data-engine-status';el.textContent=`Data engine online • ${h.events||0} verified events cached • last refresh ${h.refresh?.finished_at||'—'}`;}
   }catch(e){const box=$("status");box.className='data-engine-status error';$("engineStatusText").textContent='Data engine connection unavailable — retrying automatically';}
 }
-async function load(){loadHealth();try{const response=await fetch("/api/events",{cache:"no-store",headers:{Accept:"application/json"}});if(!response.ok)throw new Error("HTTP "+response.status);const data=await response.json();if(!Array.isArray(data))throw new Error("Invalid API response");events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));render();loadDirectory().then(()=>render()).catch(()=>{});}catch(error){console.error("NCAA API:",error);events=[];$("feed").innerHTML=`<div class="empty">${t("loading")}<br><br><small>Data engine is reconnecting automatically. Please wait a few seconds.</small></div>`;setTimeout(load,5000)}}
+async function load(){
+  loadHealth();
+  try{
+    const response=await fetch("/api/events",{cache:"no-store",headers:{Accept:"application/json"}});
+    if(!response.ok)throw new Error("HTTP "+response.status);
+    const data=await response.json();
+    if(!Array.isArray(data))throw new Error("Invalid API response");
+    events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));
+    render();
+    loadDirectory().then(()=>render()).catch(()=>{});
+  }catch(error){
+    console.error("NCAA API:",error);
+    // Presentation-safe fallback: use the verified bundled snapshot so the site
+    // remains fully usable even if the live API is temporarily unavailable.
+    try{
+      const fallback=await fetch("/data/events_snapshot.json",{cache:"no-store"});
+      if(!fallback.ok)throw new Error("Snapshot HTTP "+fallback.status);
+      const data=await fallback.json();
+      if(!Array.isArray(data))throw new Error("Invalid snapshot");
+      events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));
+      render();
+      const box=$("status");
+      box.className='data-engine-status refreshing';
+      $("engineStatusText").textContent=`Presentation snapshot online • ${events.length} verified events • live service reconnecting…`;
+      loadDirectory().then(()=>render()).catch(()=>{});
+    }catch(fallbackError){
+      console.error("NCAA snapshot:",fallbackError);
+      events=[];
+      $("feed").innerHTML=`<div class="empty">${t("api")}<br><br><small>Live data engine is reconnecting. Refresh the page in a moment.</small></div>`;
+    }
+  }
+}
 function clock(){const d=new Date();const utc=d.toISOString().replace("T"," ").slice(0,19)+" UTC";$("clock").innerHTML=`<span class="clock-main">${esc(utc)}</span><span class="clock-utc">Primary time • UTC</span>`}
 function dismissSplash(){const s=document.getElementById("brandSplash");if(!s)return;s.classList.add("splash-hide");setTimeout(()=>s.remove(),500)}
 setDirection();
