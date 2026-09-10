@@ -477,6 +477,11 @@ async function loadHealth(){
 }
 async function load(){loadHealth();try{const response=await fetch("/api/events",{cache:"no-store",headers:{Accept:"application/json"}});if(!response.ok)throw new Error("HTTP "+response.status);const data=await response.json();if(!Array.isArray(data))throw new Error("Invalid API response");events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));render();loadDirectory().then(()=>render()).catch(()=>{});}catch(error){console.error("NCAA API:",error);events=[];$("feed").innerHTML=`<div class="empty">${t("loading")}<br><br><small>Data engine is reconnecting automatically. Please wait a few seconds.</small></div>`;setTimeout(load,5000)}}
 function clock(){const d=new Date();const utc=d.toISOString().replace("T"," ").slice(0,19)+" UTC";$("clock").innerHTML=`<span class="clock-main">${esc(utc)}</span><span class="clock-utc">Primary time • UTC</span>`}
-setDirection();setup();
-setTimeout(()=>{const s=document.getElementById("brandSplash");if(s){s.classList.add("splash-hide");setTimeout(()=>s.remove(),500)}},1400);
-document.querySelector('#ranges button[data-r="today"]').classList.add("active");load();clock();setInterval(clock,1000);setInterval(load,30000);setInterval(loadHealth,10000);
+function dismissSplash(){const s=document.getElementById("brandSplash");if(!s)return;s.classList.add("splash-hide");setTimeout(()=>s.remove(),500)}
+setDirection();
+try{setup();}catch(err){console.error("NCAA UI setup:",err);}
+// Never let the presentation splash block the actual application, even if a browser
+// extension, cached asset, or optional UI feature causes a startup exception.
+setTimeout(dismissSplash,700);
+try{document.querySelector('#ranges button[data-r="today"]')?.classList.add("active");}catch(_){}
+load();clock();setInterval(clock,1000);setInterval(load,30000);setInterval(loadHealth,10000);
