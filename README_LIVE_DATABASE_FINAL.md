@@ -1,23 +1,30 @@
-# NCAA ALL SPORTS — LIVE DATABASE FINAL
+# NCAA ALL SPORTS — LIVE DATA ENGINE
 
-This build is intended as the stable presentation/deployment package.
+## Data source
+The server uses the public JSON scoreboard endpoints on `data.ncaa.com`, the NCAA data domain, without an API key or paid data subscription.
 
-## Live database behavior
-- Ships with a verified 626-event snapshot so a fresh deployment is not an empty screen.
-- The snapshot is only a bootstrap cache; the live refresh engine remains authoritative.
-- On startup, if the SQLite database has no events, `data/events_snapshot.json` is loaded automatically.
-- Every refresh cycle updates the event cache and promotes teams seen in verified events into the school/team master registry.
-- The ESPN team-directory layer refreshes configured public team directories and preserves team IDs, names, logos, provider links and conference values when supplied by the provider.
-- The scheduler refreshes every 15 minutes by default.
-- The frontend renders `/api/events` immediately and loads `/api/directory` in the background, so a slow directory request cannot block the schedule.
-- Existing events are updated rather than duplicated through canonical IDs.
+- Refresh interval: **15 minutes** (`REFRESH_MINUTES=15`)
+- Lookahead: **today + next 7 days** (`LOOKAHEAD_DAYS=7`)
+- Server-side fetch: avoids browser CORS issues
+- Cache: `data.json` is replaced atomically only when valid events are returned
+- If an upstream endpoint is unavailable, the last good cache is kept instead of blanking the site
+- `/api/health` reports refresh status and event count
+- `/api/refresh` starts an on-demand refresh
+- Tennis is excluded by project requirement
 
-## Important scope
-The current verified live adapters cover the configured ESPN feeds in `app/server.py`. The UI contains additional NCAA sports, but the site does not fabricate events for sports for which a verified source is not configured.
+## Important free-hosting note
+On a free Render web service, the instance can sleep when inactive. While the instance is awake the background worker refreshes every 15 minutes; after a sleep/restart, the first `/api/events` request attempts a refresh when the cache is stale. Render's free filesystem is not permanent storage, so long-term persistence across instance replacement requires persistent storage later.
 
 ## Render
-Start command must remain:
+Start command:
 
-`python app/server.py`
+```text
+python server.py
+```
 
-`DATABASE_PATH` can point to a persistent mounted path if one is available. If the service is restarted without persistent storage, the included snapshot will repopulate the initial cache and the live refresh engine will update it again.
+Environment variables already supported:
+
+```text
+REFRESH_MINUTES=15
+LOOKAHEAD_DAYS=7
+```

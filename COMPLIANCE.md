@@ -10,7 +10,9 @@
 8. Source attribution should be displayed where required.
 9. Conflicting reports are treated as discrepancies rather than silently fabricated values.
 10. Tennis is intentionally excluded.
-11. The application deletes legacy `SEED` events at startup so placeholder data cannot be served as live data.
+11. The current live connector is the public NCAA scoreboard JSON domain (`data.ncaa.com`); it does not bypass authentication or technical access controls.
+12. Public availability is not treated as an unlimited redistribution license; the deployment must follow the current NCAA terms, rate limits and attribution/redistribution rules.
+13. If the NCAA endpoint changes, blocks automated requests, or changes its terms, the connector must be disabled or updated rather than circumvented.
 
 ## Official school link policy
 The application may display official URLs supplied by a verified public/authorized source. If no verified URL is available, the UI may offer a normal user-clicked web search for the school's official athletics site or schedule. It does not scrape search-engine result pages, bypass robots/access controls, or fabricate a school URL. Any future source added to `data/official_sources.json` must be public/authorized and permitted for this use.

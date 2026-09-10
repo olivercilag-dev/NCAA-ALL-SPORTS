@@ -1,2 +1,1 @@
-# No third-party packages are required.
-# The app uses Python's standard library so it is easy to deploy on Render Free.
+# No third-party dependencies required.
