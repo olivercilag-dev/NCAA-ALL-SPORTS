@@ -4,6 +4,7 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / 'data.json'
@@ -17,11 +18,14 @@ USER_AGENT = 'NCAA-All-Sports/1.0 (public-data-cache; contact=site-owner)'
 # Tennis is intentionally excluded per the project requirement.
 NCAA_SOURCES = [
     ('football', 'fbs', 'Football', 'football'),
+    ('football', 'fcs', 'Football', 'football'),
     ('basketball-men', 'd1', "Men's Basketball", 'basketball'),
     ('basketball-women', 'd1', "Women's Basketball", 'basketball'),
     ('baseball', 'd1', 'Baseball', 'baseball'),
     ('softball', 'd1', 'Softball', 'softball'),
+    ('volleyball-men', 'd1', "Men's Volleyball", 'volleyball'),
     ('volleyball-women', 'd1', "Women's Volleyball", 'volleyball'),
+    ('beach-volleyball', 'd1', 'Beach Volleyball', 'beach_volleyball'),
     ('soccer-men', 'd1', "Men's Soccer", 'soccer'),
     ('soccer-women', 'd1', "Women's Soccer", 'soccer'),
     ('ice-hockey-men', 'd1', "Men's Ice Hockey", 'ice_hockey'),
@@ -31,6 +35,7 @@ NCAA_SOURCES = [
     ('field-hockey', 'd1', 'Field Hockey', 'field_hockey'),
     ('wrestling', 'd1', 'Wrestling', 'wrestling'),
     ('gymnastics-women', 'd1', "Women's Gymnastics", 'gymnastics'),
+    ('gymnastics-men', 'd1', "Men's Gymnastics", 'gymnastics'),
     ('swimming-and-diving', 'd1', 'Swimming & Diving', 'swimming'),
     ('water-polo-men', 'd1', "Men's Water Polo", 'water_polo'),
     ('water-polo-women', 'd1', "Women's Water Polo", 'water_polo'),
@@ -38,6 +43,10 @@ NCAA_SOURCES = [
     ('golf-women', 'd1', "Women's Golf", 'golf'),
     ('rowing-women', 'd1', "Women's Rowing", 'rowing'),
     ('fencing', 'd1', 'Fencing', 'fencing'),
+    ('bowling-women', 'd1', "Women's Bowling", 'bowling'),
+    ('rifle', 'd1', 'Rifle', 'rifle'),
+    ('equestrian', 'd1', 'Equestrian', 'equestrian'),
+    ('skiing', 'd1', 'Skiing', 'skiing'),
     ('cross-country-men', 'd1', "Men's Cross Country", 'cross_country'),
     ('cross-country-women', 'd1', "Women's Cross Country", 'cross_country'),
     ('track-field-indoor-men', 'd1', "Men's Indoor Track & Field", 'track_field'),
@@ -45,7 +54,7 @@ NCAA_SOURCES = [
     ('track-field-outdoor-men', 'd1', "Men's Outdoor Track & Field", 'track_field'),
     ('track-field-outdoor-women', 'd1', "Women's Outdoor Track & Field", 'track_field'),
 ]
-BASE = 'https://data.ncaa.com/casablanca/scoreboard/{sport}/{division}/{date}/scoreboard.json'
+BASE = 'https://data.ncaa.com/casablanca/scoreboard/{sport}/{division}/{year}/{month}/{day}/scoreboard.json'
 
 _lock = threading.Lock()
 _last_refresh = {'status': 'bundled', 'started_at': None, 'finished_at': None, 'events': 0, 'error': '', 'source': 'bundled snapshot'}
@@ -107,9 +116,11 @@ def pick(d, *keys):
 def team_info(x):
     if not isinstance(x, dict):
         return {'name': str(x or 'TBD')}
+    names = x.get('names') if isinstance(x.get('names'), dict) else {}
+    name = pick(x, 'name', 'teamName', 'displayName', 'shortName', 'nickname') or pick(names, 'full', 'long', 'short', 'char6', 'seo') or 'TBD'
     return {
-        'name': pick(x, 'name', 'teamName', 'displayName', 'shortName', 'nickname') or 'TBD',
-        'logo': pick(x, 'logo', 'logoUrl', 'logoURL', 'image', 'imageUrl') or '',
+        'name': name,
+        'logo': pick(x, 'logo', 'logoUrl', 'logoURL', 'image', 'imageUrl') or pick(x.get('logos', {}) if isinstance(x.get('logos'), dict) else {}, 'primary', 'main', 'url') or '',
         'rank': pick(x, 'rank', 'ranking'),
         'id': pick(x, 'id', 'teamId', 'teamID')
     }
@@ -144,7 +155,7 @@ def extract_games(obj):
 def normalize_game(g, sport_name, endpoint, sport_key):
     home = team_info(pick(g, 'home', 'homeTeam', 'home_team'))
     away = team_info(pick(g, 'away', 'awayTeam', 'away_team'))
-    start = pick(g, 'startDate', 'start_date', 'startTime', 'startTimeUtc', 'startUTC', 'scheduledStart', 'date')
+    start = pick(g, 'startDate', 'start_date', 'startTime', 'startTimeUtc', 'startUTC', 'scheduledStart', 'date', 'start')
     if isinstance(start, dict):
         start = pick(start, 'date', 'datetime', 'utc', 'value')
     start = iso_from_value(start)
@@ -201,20 +212,37 @@ def refresh_once():
     errors = []
     all_events = {}
     try:
+        jobs = []
+        today = datetime.now(timezone.utc).date()
         for sport, division, label, sport_key in NCAA_SOURCES:
             for offset in range(0, LOOKAHEAD_DAYS + 1):
-                day = (datetime.now(timezone.utc).date() + timedelta(days=offset)).isoformat()
-                endpoint = BASE.format(sport=sport, division=division, date=day)
+                dt = today + timedelta(days=offset)
+                endpoint = BASE.format(sport=sport, division=division, year=dt.year, month=f'{dt.month:02d}', day=f'{dt.day:02d}')
+                jobs.append((sport, dt.isoformat(), label, sport_key, endpoint))
+
+        def one(job):
+            sport, day, label, sport_key, endpoint = job
+            obj = fetch_json(endpoint)
+            out = []
+            for g in extract_games(obj):
+                e = normalize_game(g, label, endpoint, sport_key)
+                if e:
+                    out.append(e)
+            return sport, day, out
+
+        # Fetch sources concurrently so a missing sport endpoint cannot make a 15-minute refresh take forever.
+        with ThreadPoolExecutor(max_workers=min(16, max(4, len(jobs)))) as pool:
+            futures = [pool.submit(one, job) for job in jobs]
+            for fut in as_completed(futures):
                 try:
-                    obj = fetch_json(endpoint)
-                    for g in extract_games(obj):
-                        e = normalize_game(g, label, endpoint, sport_key)
-                        if e:
-                            all_events[e['id']] = e
+                    sport, day, events = fut.result()
+                    for e in events:
+                        all_events[e['id']] = e
                 except HTTPError as ex:
-                    if ex.code not in (404, 204): errors.append(f'{sport}/{day}: HTTP {ex.code}')
+                    if ex.code not in (404, 204): errors.append(f'upstream HTTP {ex.code}')
                 except Exception as ex:
-                    errors.append(f'{sport}/{day}: {type(ex).__name__}')
+                    errors.append(f'upstream {type(ex).__name__}')
+
         events = sorted(all_events.values(), key=lambda x: x['start_utc'])
         if events:
             write_data(events)
@@ -224,7 +252,6 @@ def refresh_once():
         return bool(events)
     finally:
         _lock.release()
-
 
 def refresh_loop():
     # Refresh immediately, then every configured interval while the free web instance is awake.

@@ -1,30 +1,32 @@
 # NCAA ALL SPORTS — LIVE DATA ENGINE
 
-## Data source
-The server uses the public JSON scoreboard endpoints on `data.ncaa.com`, the NCAA data domain, without an API key or paid data subscription.
+This build uses public NCAA scoreboard JSON endpoints on `data.ncaa.com` without an API key. The server fetches data server-side (avoiding browser CORS), merges valid events, and refreshes the local cache every 15 minutes while the Render instance is awake.
 
-- Refresh interval: **15 minutes** (`REFRESH_MINUTES=15`)
-- Lookahead: **today + next 7 days** (`LOOKAHEAD_DAYS=7`)
-- Server-side fetch: avoids browser CORS issues
-- Cache: `data.json` is replaced atomically only when valid events are returned
-- If an upstream endpoint is unavailable, the last good cache is kept instead of blanking the site
-- `/api/health` reports refresh status and event count
-- `/api/refresh` starts an on-demand refresh
+## Important fix in this build
+The NCAA endpoint uses a date path of `YYYY/MM/DD`. The previous build incorrectly sent the whole ISO date as one path segment, which caused the live fetch to return no events and left the bundled snapshot in place.
+
+## Refresh behavior
+- `REFRESH_MINUTES=15`
+- `LOOKAHEAD_DAYS=7` (today + next 7 days)
+- Parallel upstream requests for faster refresh
+- Last good cache is retained if an upstream source is unavailable
+- `/api/health` shows current source/status
+- `/api/refresh` triggers an on-demand refresh
+- `/api/events` serves the current cache
 - Tennis is excluded by project requirement
 
-## Important free-hosting note
-On a free Render web service, the instance can sleep when inactive. While the instance is awake the background worker refreshes every 15 minutes; after a sleep/restart, the first `/api/events` request attempts a refresh when the cache is stale. Render's free filesystem is not permanent storage, so long-term persistence across instance replacement requires persistent storage later.
-
 ## Render
-Start command:
+Start Command:
 
 ```text
 python server.py
 ```
 
-Environment variables already supported:
+Environment:
 
 ```text
 REFRESH_MINUTES=15
 LOOKAHEAD_DAYS=7
 ```
+
+A free Render instance may sleep. Refreshing every 15 minutes is reliable while the instance is awake; after a restart, the refresh thread starts again. The free filesystem should not be treated as permanent historical storage.
