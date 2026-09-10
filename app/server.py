@@ -781,7 +781,7 @@ class Handler(BaseHTTPRequestHandler):
         if not os.path.isfile(fp): self.send_response(404); self.end_headers(); return
         typ = "text/html; charset=utf-8" if fp.endswith(".html") else "text/css; charset=utf-8" if fp.endswith(".css") else "application/javascript; charset=utf-8" if fp.endswith(".js") else "image/svg+xml" if fp.endswith(".svg") else "image/png" if fp.endswith(".png") else "application/octet-stream"
         data=open(fp,"rb").read()
-        self.send_response(200); self.send_header("Content-Type",typ); self.send_header("Content-Length",str(len(data))); self.end_headers(); self.wfile.write(data)
+        self.send_response(200); self.send_header("Content-Type",typ); self.send_header("Content-Length",str(len(data))); self.send_header("Cache-Control","no-store, no-cache, must-revalidate, max-age=0"); self.end_headers(); self.wfile.write(data)
 
 
 if __name__ == "__main__":

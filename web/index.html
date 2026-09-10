@@ -92,7 +92,26 @@
 <script>
 setTimeout(function(){var s=document.getElementById('brandSplash');if(s){s.classList.add('splash-hide');setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},450);}},900);
 </script>
-<script src="/events_bootstrap.js"></script>
-<script src="/app.js"></script>
+<script src="/events_bootstrap.js?v=20260910"></script>
+<script src="/app.js?v=20260910"></script>
+<script>
+(function(){
+  function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\'":"&#39;"})[c]})}
+  function fallback(){
+    if(window.__NCAA_APP_STARTED || !Array.isArray(window.NCAA_BOOTSTRAP_EVENTS)) return;
+    var feed=document.getElementById('feed'); if(!feed) return;
+    var ev=window.NCAA_BOOTSTRAP_EVENTS.slice().sort(function(a,b){return new Date(a.start_utc)-new Date(b.start_utc)});
+    if(!ev.length) return;
+    var fmt=function(x){try{return new Intl.DateTimeFormat('en-GB',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(x))}catch(e){return x.slice(11,16)}};
+    feed.innerHTML='<div class="day">BUNDLED PRESENTATION DATA • '+ev.length+' EVENTS • UTC</div>'+ev.map(function(e){
+      var score=(e.home_score!=null||e.away_score!=null)?'<span class="mini-score">'+esc(e.away_score==null?'—':e.away_score)+' : '+esc(e.home_score==null?'—':e.home_score)+'</span>':'<span class="mini-score">—</span>';
+      return '<article class="event" style="--event-color:'+(e.color||'#1597ff')+'"><div class="time"><strong>'+esc(fmt(e.start_utc))+'</strong><small>UTC</small></div><div class="matchup"><div class="team-line"><span class="team-side away-side"><b>'+esc(e.away||'TBD')+'</b></span><span class="vs-block"><span class="vs">VS</span>'+score+'<button class="game-center-btn" type="button" disabled>Game Center →</button></span><span class="team-side home-side"><b>'+esc(e.home||'TBD')+'</b></span></div><div class="meta">'+esc(e.sport||'NCAA')+(e.conference?' • '+esc(e.conference):'')+' • '+esc(e.status||'Scheduled')+'</div></div></article>';
+    }).join('');
+    var st=document.getElementById('engineStatusText'); if(st) st.textContent='Presentation data online • '+ev.length+' verified events • live service unavailable';
+  }
+  setTimeout(fallback,1200);
+  window.addEventListener('error',function(){setTimeout(fallback,50)});
+})();
+</script>
 </body>
 </html>
