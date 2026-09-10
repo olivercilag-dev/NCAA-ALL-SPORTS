@@ -48,15 +48,51 @@ function flag(c){return `<img class="flag" src="/flags/${LANGUAGES[c].flag}.svg"
 function setDirection(){document.documentElement.dir=lang==="he"?"rtl":"ltr";document.documentElement.lang=lang}
 function selectLanguage(c){lang=c;localStorage.setItem("ncaaLang",lang);setDirection();renderLanguagePicker();render()}
 function renderLanguagePicker(){const box=$("lang");if(!box)return;const current=LANGUAGES[lang];box.innerHTML=`<button class="lang-current" type="button" aria-expanded="false">${flag(lang)}<span>${current.name}</span><span class="lang-arrow">▾</span></button><div class="lang-menu">${Object.entries(LANGUAGES).map(([c,i])=>`<button class="lang-option ${c===lang?"selected":""}" type="button" data-lang="${c}">${flag(c)}<span>${i.name}</span></button>`).join("")}</div>`;const btn=box.querySelector(".lang-current");btn.onclick=()=>{box.classList.toggle("open");btn.setAttribute("aria-expanded",box.classList.contains("open"))};box.querySelectorAll(".lang-option").forEach(b=>b.onclick=()=>{selectLanguage(b.dataset.lang);box.classList.remove("open")});document.addEventListener("click",e=>{if(!box.contains(e.target))box.classList.remove("open")})}
-function renderTimezonePicker(){const box=$("tz");if(!box)return;const zones=zoneList();if(!zones.includes("UTC"))zones.unshift("UTC");if(!zones.includes(timezone))timezone="UTC";box.innerHTML=`<label class="tz-label" for="timezone">${esc(t("timezone"))}</label><select id="timezone" aria-label="${esc(t("timezone"))}">${zones.map(z=>`<option value="${esc(z)}" ${z===timezone?"selected":""}>${esc(zoneLabel(z))}</option>`).join("")}</select>`;$("timezone").onchange=e=>{timezone=e.target.value;localStorage.setItem("ncaaTimezone",timezone);render();clock()}}
+function renderTimezonePicker(){
+  const box=$("tz"); if(!box)return;
+  const zones=zoneList(); if(!zones.includes("UTC"))zones.unshift("UTC");
+  if(!zones.includes(timezone))timezone="UTC";
+  box.innerHTML=`<div class="tz-search-wrap">
+    <button type="button" class="tz-current" id="tzCurrent" aria-expanded="false"><span>◷</span><strong>${esc(zoneLabel(timezone))}</strong><span class="tz-chevron">⌄</span></button>
+    <div class="tz-menu" id="tzMenu">
+      <div class="tz-menu-head"><b>${esc(t("timezone"))}</b><small>UTC is default • choose only when needed</small></div>
+      <input id="tzSearch" class="tz-search" type="search" autocomplete="off" placeholder="Search time zone…" aria-label="Search time zone">
+      <div id="tzResults" class="tz-results"></div>
+    </div>
+  </div>`;
+  const current=$("tzCurrent"), menu=$("tzMenu"), input=$("tzSearch"), results=$("tzResults");
+  const paint=(q="")=>{
+    const query=q.trim().toLowerCase();
+    let matches=zones.filter(z=>!query || z.toLowerCase().replaceAll("_"," ").includes(query));
+    if(!query) matches=[timezone, ...zones.filter(z=>z!==timezone)].slice(0,8);
+    else matches=matches.slice(0,10);
+    results.innerHTML=matches.length?matches.map(z=>`<button type="button" class="tz-option ${z===timezone?"selected":""}" data-zone="${esc(z)}"><span>${z==="UTC"?"🌐":"◉"}</span><strong>${esc(zoneLabel(z))}</strong>${z===timezone?"<b>✓</b>":""}</button>`).join(""):`<div class="tz-no-results">No matching time zones.</div>`;
+    results.querySelectorAll(".tz-option").forEach(btn=>btn.onclick=()=>{
+      timezone=btn.dataset.zone||"UTC"; localStorage.setItem("ncaaTimezone",timezone); closeTimezoneMenus(); render(); clock();
+    });
+  };
+  current.onclick=()=>{const open=box.classList.toggle("open");current.setAttribute("aria-expanded",String(open));if(open){input.value="";paint();setTimeout(()=>input.focus(),0)}};
+  input.oninput=e=>paint(e.target.value);
+  paint();
+  if(!window.__ncaaTimezoneOutside){
+    document.addEventListener("click",e=>{if(!e.target.closest(".timezone-picker,.side-timezone-search"))closeTimezoneMenus()});
+    window.__ncaaTimezoneOutside=true;
+  }
+}
+function closeTimezoneMenus(){document.querySelectorAll(".timezone-picker.open").forEach(x=>x.classList.remove("open"));document.querySelectorAll(".side-timezone-search.open").forEach(x=>x.classList.remove("open"));}
+function renderSideTimezone(){
+  const box=$("tzSide"); if(!box)return;
+  box.innerHTML=`<div class="zone-current"><span>Selected zone</span><strong>${esc(zoneLabel(timezone))}</strong></div><button type="button" class="side-zone-change" id="sideZoneChange">⌕ Search / change time zone</button><div class="zone-note">Event times stay in UTC until you explicitly choose another zone.</div>`;
+  $("sideZoneChange").onclick=()=>{const top=$("tzCurrent");if(top){top.click();setTimeout(()=>$("tzSearch")?.focus(),0)}};
+}
 function zoneTime(iso){return formatZone(iso,timezone,true)}
 function zoneHM(iso,tz=timezone){try{return new Intl.DateTimeFormat("en-GB",{timeZone:tz,hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(iso))}catch(_){return iso.slice(11,16)}}
 function officialSearchButton(team,kind){if(!team||team==="TBD")return"";const q=kind==="schedule"?`${team} official athletics schedule`:`${team} official athletics`;const u=`https://www.google.com/search?q=${encodeURIComponent(q)}`;return linkButton(u,kind==="schedule"?t("search_schedule"):t("search_official"))}
 function sportIcon(k){return ({football:"🏈",basketball:"🏀",soccer:"⚽",baseball:"⚾",volleyball:"🏐",ice_hockey:"🏒",softball:"🥎",golf:"⛳",lacrosse:"🥍",water_polo:"🌊",wrestling:"🤼",gymnastics:"🤸",track_field:"🏃",swimming_diving:"🏊",cross_country:"🏃",rowing:"🚣",fencing:"🤺",field_hockey:"🏑"}[k]||"◈")}
 function renderSportStrip(){const counts={};events.forEach(e=>{const k=canonicalSport(e.sport);if(k!=="tennis")counts[k]=(counts[k]||0)+1});const order=["football","basketball","soccer","baseball","volleyball","ice_hockey","golf","track_field","water_polo","lacrosse","softball","wrestling","gymnastics","field_hockey"];const keys=order.filter(k=>counts[k]).concat(Object.keys(counts).filter(k=>!order.includes(k)&&k!=="tennis"));$("sportStrip").innerHTML=`<button class="sport-tile active" data-sp=""><b>▦</b><strong>All Sports</strong><small>${events.length}</small></button>`+keys.map(k=>`<button class="sport-tile" data-sp="${k}"><b>${sportIcon(k)}</b><strong>${esc(SPORTS[k]||k)}</strong><small>${counts[k]}</small></button>`).join("");document.querySelectorAll(".sport-tile").forEach(b=>b.onclick=()=>{document.querySelectorAll(".sport-tile").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("sport").value=b.dataset.sp;render()})}
-function renderSideTimezone(){const box=$("tzSide");if(!box)return;box.innerHTML=`<div class="zone-current">${esc(zoneLabel(timezone))}</div><div class="zone-options"><label><input type="radio" name="sidezone" value="UTC" ${timezone==="UTC"?"checked":""}> UTC (default)</label><label><input type="radio" name="sidezone" value="America/New_York" ${timezone==="America/New_York"?"checked":""}> America/New_York (EDT)</label><label><input type="radio" name="sidezone" value="Europe/Belgrade" ${timezone==="Europe/Belgrade"?"checked":""}> Europe/Belgrade (CEST)</label><label><input type="radio" name="sidezone" value="Europe/London" ${timezone==="Europe/London"?"checked":""}> Europe/London (BST)</label><label><input type="radio" name="sidezone" value="Asia/Tokyo" ${timezone==="Asia/Tokyo"?"checked":""}> Asia/Tokyo (JST)</label></div><button class="more-zones" id="moreZones">Prikaži sve zone…</button>`;box.querySelectorAll("input").forEach(r=>r.onchange=()=>{timezone=r.value;localStorage.setItem("ncaaTimezone",timezone);renderTimezonePicker();renderSideTimezone();render();clock()});$("moreZones").onclick=()=>$("timezone").focus()}
 function renderFeatured(){const f=events.filter(e=>e.start_utc).slice().sort((a,b)=>new Date(a.start_utc)-new Date(b.start_utc))[0];if(!f){$("featured").innerHTML=`<div class="panel-title">★ &nbsp;Featured Match</div><div class="empty">No verified event.</div>`;return}const hs=f.home_score??"—",as=f.away_score??"—";$("featured").innerHTML=`<div class="panel-title">★ &nbsp;Featured Match <span class="live-dot">● LIVE</span></div><div class="featured-card"><div class="feature-sport">${sportIcon(f.sport)} ${esc(SPORTS[f.sport]||f.sport)}</div><div class="featured-match"><div><div class="feature-logo">${f.away_logo?`<img src="${esc(f.away_logo)}" alt="" loading="lazy">`:""}</div><b>${esc(f.away||"TBD")}</b></div><div class="feature-score">${hs} <span>:</span> ${as}</div><div><div class="feature-logo">${f.home_logo?`<img src="${esc(f.home_logo)}" alt="" loading="lazy">`:""}</div><b>${esc(f.home||"TBD")}</b></div></div><small>${esc(zoneTime(f.start_utc))} • ${esc(f.venue||"NCAA")}</small><button class="feature-btn">Open Game Center →</button></div>`;$("featured").querySelector(".feature-btn").onclick=()=>detail(f)}
 function updateDashboardMeta(list){const title=range==="today"?"DANAS":range==="yesterday"?"JUČE":range==="tomorrow"?"SUTRA":"SLEDEĆIH 7 DANA";$("feedTitle").textContent=title;$("feedMeta").textContent=`${new Date().toISOString().slice(0,10)} • ${list.length} ${t("events")} • ${zoneLabel(timezone)}`}
+function closeGameCenter(){$("modal").classList.add("hidden");document.body.classList.remove("modal-open");}
 function setup(){
   renderLanguagePicker();renderTimezonePicker();renderSideTimezone();
   $("ranges").innerHTML=[["yesterday","yesterday"],["today","today"],["tomorrow","tomorrow"],["next","next"]].map(([k,v])=>`<button data-r="${v}">${t(k)}</button>`).join("");
@@ -67,8 +103,9 @@ function setup(){
   $("sport").onchange=()=>{document.querySelectorAll(".sport-tile").forEach(x=>x.classList.toggle("active",x.dataset.sp===$("sport").value));render()};
   $("conference").onchange=render;
   $("sort").onchange=render;
-  $("close").onclick=()=>$("modal").classList.add("hidden");
-  $("modal").addEventListener("click",e=>{if(e.target.id==="modal")$("modal").classList.add("hidden")});
+  $("close").onclick=()=>closeGameCenter();
+  $("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeGameCenter()});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("modal").classList.contains("hidden"))closeGameCenter()});
   document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>{document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));b.classList.add("active");const id=b.dataset.jump;if(id==="schedule")$("schedule").scrollIntoView({behavior:"smooth",block:"start"});else if(id==="settings")$("settings").scrollIntoView({behavior:"smooth",block:"center"});else $("home").scrollIntoView({behavior:"smooth",block:"start"})});
 }
 
@@ -195,6 +232,7 @@ async function detail(e){
   const d=$("detail");
   d.innerHTML=`<div class="detail-loading">${t("loading")}</div>`;
   $("modal").classList.remove("hidden");
+  document.body.classList.add("modal-open");
   try{
     const r=await fetch("/api/event/"+encodeURIComponent(e.id),{cache:"no-store"});
     const x=r.ok?await r.json():e;
@@ -329,7 +367,7 @@ async function loadHealth(){
   }catch(e){const box=$("status");box.className='data-engine-status error';$("engineStatusText").textContent='Data engine connection unavailable — retrying automatically';}
 }
 async function load(){loadHealth();try{const response=await fetch("/api/events",{cache:"no-store",headers:{Accept:"application/json"}});if(!response.ok)throw new Error("HTTP "+response.status);const data=await response.json();if(!Array.isArray(data))throw new Error("Invalid API response");events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));await loadDirectory();render()}catch(error){console.error("NCAA API:",error);events=[];$("feed").innerHTML=`<div class="empty">${t("loading")}<br><br><small>Data engine is reconnecting automatically. Please wait a few seconds.</small></div>`;setTimeout(load,5000)}}
-function clock(){const d=new Date();const local=formatZone(d.toISOString(),timezone,true);const utc=d.toISOString().replace("T"," ").slice(0,19)+" UTC";$("clock").innerHTML=`<span class="clock-main">${esc(local)}</span><span class="clock-utc">${esc(utc)}</span>`}
+function clock(){const d=new Date();const utc=d.toISOString().replace("T"," ").slice(0,19)+" UTC";$("clock").innerHTML=`<span class="clock-main">${esc(utc)}</span><span class="clock-utc">Primary time • UTC</span>`}
 setDirection();setup();
 setTimeout(()=>{const s=document.getElementById("brandSplash");if(s){s.classList.add("splash-hide");setTimeout(()=>s.remove(),500)}},1400);
 document.querySelector('#ranges button[data-r="today"]').classList.add("active");load();clock();setInterval(clock,1000);setInterval(load,30000);setInterval(loadHealth,10000);
