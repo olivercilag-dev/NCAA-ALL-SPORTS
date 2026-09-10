@@ -23,7 +23,7 @@ const SPORTS={football:"Football",soccer:"Soccer",basketball:"Basketball",volley
 const SPORT_ALIASES={college_football:"football",ncaaf:"football",american_football:"football",mens_soccer:"soccer",womens_soccer:"soccer",mens_college_basketball:"basketball",womens_college_basketball:"basketball",ncaab:"basketball",womens_college_volleyball:"volleyball",mens_college_volleyball:"volleyball",college_baseball:"baseball",college_softball:"softball",mens_college_hockey:"ice_hockey",womens_college_hockey:"ice_hockey",hockey:"ice_hockey"};
 function canonicalSport(v){return SPORT_ALIASES[String(v||"").toLowerCase()]||String(v||"").toLowerCase()}
 let lang=localStorage.getItem("ncaaLang")||navigator.language.slice(0,2);if(!I18N[lang])lang="en";
-let range="today",events=[];let directory={sports:{},conferences:{}};let timezone=localStorage.getItem("ncaaTimezone")||"UTC";let timeFrom="",timeTo="";
+let range="today",events=[];let directory={sports:{},conferences:{}};let schoolQuery="";let timezone=localStorage.getItem("ncaaTimezone")||"UTC";let timeFrom="",timeTo="";
 const $=id=>document.getElementById(id);
 const ULTIMATE_EN={
   official_school:"Official school",official_schedule:"Official schedule",search_official:"Find official school",
@@ -93,19 +93,69 @@ function renderSportStrip(){const counts={};events.forEach(e=>{const k=canonical
 function renderFeatured(){const f=events.filter(e=>e.start_utc).slice().sort((a,b)=>new Date(a.start_utc)-new Date(b.start_utc))[0];if(!f){$("featured").innerHTML=`<div class="panel-title">★ &nbsp;Featured Match</div><div class="empty">No verified event.</div>`;return}const hs=f.home_score??"—",as=f.away_score??"—";$("featured").innerHTML=`<div class="panel-title">★ &nbsp;Featured Match <span class="live-dot">● LIVE</span></div><div class="featured-card"><div class="feature-sport">${sportIcon(f.sport)} ${esc(SPORTS[f.sport]||f.sport)}</div><div class="featured-match"><div><div class="feature-logo">${f.away_logo?`<img src="${esc(f.away_logo)}" alt="" loading="lazy">`:""}</div><b>${esc(f.away||"TBD")}</b></div><div class="feature-score">${hs} <span>:</span> ${as}</div><div><div class="feature-logo">${f.home_logo?`<img src="${esc(f.home_logo)}" alt="" loading="lazy">`:""}</div><b>${esc(f.home||"TBD")}</b></div></div><small>${esc(zoneTime(f.start_utc))} • ${esc(f.venue||"NCAA")}</small><button class="feature-btn">Open Game Center →</button></div>`;$("featured").querySelector(".feature-btn").onclick=()=>detail(f)}
 function updateDashboardMeta(list){const title=range==="today"?"DANAS":range==="yesterday"?"JUČE":range==="tomorrow"?"SUTRA":"SLEDEĆIH 7 DANA";$("feedTitle").textContent=title;$("feedMeta").textContent=`${new Date().toISOString().slice(0,10)} • ${list.length} ${t("events")} • ${zoneLabel(timezone)}`}
 function closeGameCenter(){$("modal").classList.add("hidden");document.body.classList.remove("modal-open");}
+function openCommandPalette(initial=""){
+  const box=$("commandPalette"); if(!box)return;
+  box.classList.remove("hidden");
+  const input=$("commandInput");
+  input.value=initial||"";
+  paintCommandSuggestions(input.value);
+  setTimeout(()=>input.focus(),0);
+}
+function closeCommandPalette(){ $("commandPalette")?.classList.add("hidden"); }
+function paintCommandSuggestions(query=""){
+  const host=$("commandSuggestions"); if(!host)return;
+  const q=String(query||"").trim().toLowerCase();
+  const out=[];
+  const push=(type,label,sub,action,logo="",icon="◈")=>{
+    if(q && !(label+" "+sub).toLowerCase().includes(q))return;
+    out.push({type,label,sub,action,logo,icon});
+  };
+  const schoolMap=new Map();
+  for(const arr of Object.values(directory.sports||{})) for(const x of (arr||[])){ if(x?.name) schoolMap.set(String(x.name).toLowerCase(),x); }
+  for(const [k,x] of [...schoolMap.entries()].slice(0,80)) push("School",x.name,`${schoolItemSports(x.name).map(s=>SPORTS[s]||s).slice(0,3).join(" • ")||"NCAA team"}`,()=>openSchoolPage(x),x.logo,"⌂");
+  for(const [k,v] of Object.entries(SPORTS).filter(([k])=>k!=="tennis")) push("Sport",v,"Open sport schedule",()=>{closeCommandPalette();$("sport").value=k;renderSportStrip();render() },"",sportIcon(k));
+  for(const c of Object.keys(directory.conferences||{}).sort().slice(0,60)) push("Conference",c,"Open conference filter",()=>{closeCommandPalette();$("conference").value=c;render() },"","♟");
+  for(const e of events.slice().sort((a,b)=>new Date(a.start_utc)-new Date(b.start_utc)).slice(0,80)){
+    const label=`${e.away||"TBD"} vs ${e.home||"TBD"}`;
+    push("Game",label,`${SPORTS[e.sport]||e.sport}${e.conference?" • "+e.conference:""}`,()=>{closeCommandPalette();detail(e)},e.away_logo||e.home_logo,sportIcon(e.sport));
+  }
+  const dedupe=new Set();
+  const filtered=out.filter(x=>{const k=x.type+"|"+x.label;if(dedupe.has(k))return false;dedupe.add(k);return true}).slice(0,q?12:8);
+  host.innerHTML=filtered.length?filtered.map((x,i)=>`<button class="suggestion" type="button" data-suggestion-index="${i}"><span class="suggestion-icon">${x.logo?`<img class="suggestion-logo" src="${esc(x.logo)}" alt="" loading="lazy">`:x.icon}</span><span class="suggestion-main"><strong>${esc(x.label)}</strong><small>${esc(x.sub)}</small></span><span class="suggestion-type">${esc(x.type)}</span></button>`).join(""): `<div class="command-empty">No matching NCAA results yet.</div>`;
+  host.querySelectorAll(".suggestion").forEach((b,i)=>b.onclick=filtered[i].action);
+}
 function setup(){
   renderLanguagePicker();renderTimezonePicker();renderSideTimezone();
   $("ranges").innerHTML=[["yesterday","yesterday"],["today","today"],["tomorrow","tomorrow"],["next","next"]].map(([k,v])=>`<button data-r="${v}">${t(k)}</button>`).join("");
   document.querySelectorAll("#ranges button").forEach(b=>b.onclick=()=>{range=b.dataset.r;document.querySelectorAll("#ranges button").forEach(x=>x.classList.toggle("active",x===b));render()});
-  $("search").oninput=render;
+  $("search").oninput=render;$("schoolSearch").oninput=e=>{schoolQuery=e.target.value||"";renderSchoolDirectory()};
   $("timeFrom").onchange=e=>{timeFrom=e.target.value;render()};$("timeTo").onchange=e=>{timeTo=e.target.value;render()};
   $("clearFilters").onclick=()=>{timeFrom="";timeTo="";$("timeFrom").value="";$("timeTo").value="";$("search").value="";$("sport").value="";$("conference").value="";renderSportStrip();render()};
   $("sport").onchange=()=>{document.querySelectorAll(".sport-tile").forEach(x=>x.classList.toggle("active",x.dataset.sp===$("sport").value));render()};
   $("conference").onchange=render;
   $("sort").onchange=render;
+  $("globalSearchBtn")?.addEventListener("click",()=>openCommandPalette());
+  $("commandClose")?.addEventListener("click",closeCommandPalette);
+  $("commandPalette")?.addEventListener("click",e=>{if(e.target.id==="commandPalette")closeCommandPalette()});
+  $("commandInput")?.addEventListener("input",e=>paintCommandSuggestions(e.target.value));
+  document.querySelectorAll(".utility-action").forEach(b=>b.onclick=()=>{
+    const a=b.dataset.action;
+    if(a==="schedule"){$("schedule").scrollIntoView({behavior:"smooth",block:"start"});}
+    else if(a==="live"){
+      const live=events.filter(e=>String(e.status||"").toLowerCase().includes("live"));
+      if(live[0])detail(live[0]); else {openCommandPalette("live");}
+    } else if(a==="game") openCommandPalette();
+    else if(a==="news") window.open("https://www.ncaa.com/news","_blank","noopener");
+  });
   $("close").onclick=()=>closeGameCenter();
   $("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeGameCenter()});
-  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("modal").classList.contains("hidden"))closeGameCenter()});
+  document.addEventListener("keydown",e=>{
+    if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();openCommandPalette()}
+    if(e.key==="Escape"){
+      if(!$('commandPalette').classList.contains('hidden')) closeCommandPalette();
+      else if(!$('modal').classList.contains('hidden')) closeGameCenter();
+    }
+  });
   document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>{document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));b.classList.add("active");const id=b.dataset.jump;if(id==="schedule")$("schedule").scrollIntoView({behavior:"smooth",block:"start"});else if(id==="settings")$("settings").scrollIntoView({behavior:"smooth",block:"center"});else $("home").scrollIntoView({behavior:"smooth",block:"start"})});
 }
 
@@ -126,14 +176,47 @@ function providerMark(source){
   const mark=key.includes('espn')?'ESPN':key.includes('ncaa')?'NCAA':key.includes('official')?'OFFICIAL':s.split(/\s+/)[0].slice(0,10).toUpperCase();
   return `<span class="source-badge"><span class="source-mark">${esc(mark)}</span><span>${esc(s)}</span></span>`;
 }
+function schoolItemSports(name){
+  const out=[];
+  for(const [sport,arr] of Object.entries(directory.sports||{})){
+    if((arr||[]).some(x=>String(x.name||"").toLowerCase()===String(name||"").toLowerCase())) out.push(sport);
+  }
+  return out;
+}
+function openSchoolPage(team){
+  const name=team?.name||team; if(!name||name==='TBD')return;
+  const sports=schoolItemSports(name);
+  const schoolEvents=events.filter(e=>String(e.home||"").toLowerCase()===name.toLowerCase()||String(e.away||"").toLowerCase()===name.toLowerCase());
+  const logo=team?.logo||schoolEvents.find(e=>String(e.home||"").toLowerCase()===name.toLowerCase())?.home_logo||schoolEvents.find(e=>String(e.away||"").toLowerCase()===name.toLowerCase())?.away_logo||"";
+  const url=team?.url||schoolSearchUrl(name);
+  const d=$("detail");
+  d.innerHTML=`<div class="school-page">
+    <div class="school-hero"><div class="school-hero-logo">${logo?`<img src="${esc(logo)}" alt="${esc(name)}">`:`<span>${esc(name.slice(0,1))}</span>`}</div><div><div class="eyebrow">SCHOOL PROFILE</div><h2>${esc(name)}</h2><p>All available NCAA sports, teams, schedules and related information for this school.</p></div></div>
+    <div class="school-page-actions"><a class="detail-link primary" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Official / provider school page ↗</a><a class="detail-link" href="${esc(schoolSearchUrl(name))}" target="_blank" rel="noopener noreferrer">Find official athletics ↗</a></div>
+    <div class="school-sport-tabs"><button class="school-sport-tab active" data-school-sport="">All Sports</button>${sports.map(k=>`<button class="school-sport-tab" data-school-sport="${esc(k)}">${esc(SPORTS[k]||k)}</button>`).join("")}</div>
+    <div class="school-page-grid"><section><div class="gc-section"><h3>Sports covered by this school</h3><div class="school-sport-grid">${(sports.length?sports:Object.keys(SPORTS).filter(k=>schoolEvents.some(e=>e.sport===k))).map(k=>`<button class="school-sport-card" data-school-sport="${esc(k)}"><span>${sportIcon(k)}</span><strong>${esc(SPORTS[k]||k)}</strong></button>`).join("")||`<div class="empty">No verified sport coverage is currently loaded.</div>`}</div></div>
+    <div class="gc-section"><h3>Schedule & results</h3><div id="schoolEventList" class="school-event-list"></div></div></section>
+    <aside class="school-side-card"><h3>School information</h3><div><span>Sports</span><b>${sports.length}</b></div><div><span>Loaded events</span><b>${schoolEvents.length}</b></div><div><span>Conference</span><b>${esc(team?.conference||schoolEvents.find(e=>String(e.home||"").toLowerCase()===name.toLowerCase()||String(e.away||"").toLowerCase()===name.toLowerCase())?.conference||"—")}</b></div><div><span>Logo</span><b>${logo?"Available":"Not verified"}</b></div></aside></div>
+  </div>`;
+  $("modal").classList.remove("hidden");document.body.classList.add("modal-open");
+  const renderSchoolEvents=(sport="")=>{
+    const arr=schoolEvents.filter(e=>!sport||e.sport===sport).sort((a,b)=>new Date(a.start_utc)-new Date(b.start_utc)).slice(0,100);
+    $("schoolEventList").innerHTML=arr.length?arr.map(e=>{const isHome=String(e.home||"").toLowerCase()===name.toLowerCase();return `<button class="school-event-row" data-event-id="${esc(e.id)}"><span class="school-event-date">${esc(zoneTime(e.start_utc))}</span><span>${esc(e.away||"TBD")}</span><b>${esc(e.away_score??"—")} : ${esc(e.home_score??"—")}</b><span>${esc(e.home||"TBD")}</span><em>${esc(SPORTS[e.sport]||e.sport)} • ${isHome?"HOME":"AWAY"}</em></button>`}).join(""):`<div class="empty">No verified events loaded for this sport.</div>`;
+    $("schoolEventList").querySelectorAll(".school-event-row").forEach(btn=>btn.onclick=()=>{const ev=events.find(e=>e.id===btn.dataset.eventId);if(ev)detail(ev)});
+  };
+  document.querySelectorAll(".school-sport-tab,.school-sport-card").forEach(btn=>btn.onclick=()=>{const sp=btn.dataset.schoolSport||"";document.querySelectorAll(".school-sport-tab").forEach(x=>x.classList.toggle("active",x.dataset.schoolSport===sp));renderSchoolEvents(sp)});
+  renderSchoolEvents("");
+}
 function renderSchoolDirectory(){
   const sp=$("sport").value||""; const conf=$("conference")?.value||"";
   let teams=[];
   if(conf && directory.conferences?.[conf]) teams=directory.conferences[conf];
   else if(sp && directory.sports?.[sp]) teams=directory.sports[sp];
   else { const map=new Map(); Object.values(directory.sports||{}).flat().forEach(x=>map.set(x.name,x)); teams=[...map.values()].sort((a,b)=>a.name.localeCompare(b.name)); }
+  const q=schoolQuery.trim().toLowerCase(); if(q) teams=teams.filter(x=>String(x.name||"").toLowerCase().includes(q));
   $("schoolCount").textContent=teams.length;
-  $("schoolList").innerHTML=teams.length ? teams.map(x=>{const u=x.url||schoolSearchUrl(x.name);return `<a class="school-chip" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span class="school-chip-logo">${x.logo?`<img src="${esc(x.logo)}" alt="" loading="lazy">`:`<span>${esc((x.name||"N").slice(0,1))}</span>`}</span><span>${esc(x.name)}</span><b>↗</b></a>`}).join("") : `<div class="empty mini-empty">No verified schools are currently present in the loaded schedule.</div>`;
+  $("schoolList").innerHTML=teams.length ? teams.map(x=>`<button type="button" class="school-chip" data-school-name="${esc(x.name)}"><span class="school-chip-logo">${x.logo?`<img src="${esc(x.logo)}" alt="" loading="lazy">`:`<span>${esc((x.name||"N").slice(0,1))}</span>`}</span><span>${esc(x.name)}</span><b>›</b></button>`).join("") : `<div class="empty mini-empty">No verified schools match this selection.</div>`;
+  $("schoolList").querySelectorAll(".school-chip").forEach(btn=>{const team=teams.find(x=>x.name===btn.dataset.schoolName);btn.onclick=()=>openSchoolPage(team)});
 }
 async function loadDirectory(){
   try{const r=await fetch("/api/directory",{cache:"no-store"});if(r.ok)directory=await r.json();}
@@ -181,14 +264,12 @@ function render(){
         <div class="matchup">
           <div class="team-line">
             <span class="team-side away-side">${logo(e.away_logo,e.away,'A')}<b>${esc(e.away||'TBD')}</b></span>
-            <span class="vs">VS</span>
+            <span class="vs-block"><span class="vs">VS</span>${score}<button class="game-center-btn" type="button">${t('details')} →</button></span>
             <span class="team-side home-side"><b>${esc(e.home||'TBD')}</b>${logo(e.home_logo,e.home,'H')}</span>
-            ${score}
           </div>
-          <div class="meta">${esc(SPORTS[e.sport]||e.sport)}${e.conference?' • '+esc(e.conference):''}</div>
-        </div>
-        <div class="badge"><span class="status">${esc(e.status||t('scheduled'))}</span><small>${t('details')} →</small></div>`;
-      card.onclick=()=>detail(e);$('feed').appendChild(card)
+          <div class="meta">${esc(SPORTS[e.sport]||e.sport)}${e.conference?' • '+esc(e.conference):''} • ${esc(e.status||t('scheduled'))}</div>
+        </div>`;
+      card.onclick=()=>detail(e);card.querySelector('.game-center-btn').onclick=(ev)=>{ev.stopPropagation();detail(e)};$('feed').appendChild(card)
     })
   }
 }

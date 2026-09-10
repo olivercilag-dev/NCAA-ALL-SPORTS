@@ -35,13 +35,12 @@
 <main id="home">
   <section class="hero-banner" aria-label="NCAA All Sports athlete banner"><div class="hero-overlay"></div><div class="hero-vignette"></div></section>
 
-  <section class="quick-strip" aria-label="Quick access">
-    <div><b>↯</b><strong>LIVE SCORES</strong><small>Real-time updates</small></div><i></i>
-    <div><b>◉</b><strong>GAME CENTER</strong><small>Stats, play-by-play, more</small></div><i></i>
-    <div><b>▦</b><strong>FULL SCHEDULE</strong><small>All sports, all teams</small></div><i></i>
-    <div><b>♙</b><strong>TEAM PAGES</strong><small>Logos, rosters, links</small></div><i></i>
-    <div><b>♟</b><strong>CONFERENCES</strong><small>Standings & rankings</small></div><i></i>
-    <div><b>▤</b><strong>NEWS</strong><small>Latest updates</small></div>
+  <section class="utility-bar" aria-label="Quick actions">
+    <button class="utility-search" id="globalSearchBtn" type="button"><span class="utility-icon">⌕</span><span><strong>Search</strong><small>Team, school, sport, conference</small></span><kbd>⌘ K</kbd></button>
+    <button class="utility-action" data-action="live" type="button"><span class="utility-icon live-icon">●</span><span><strong>Live</strong><small>Scores</small></span></button>
+    <button class="utility-action" data-action="game" type="button"><span class="utility-icon">◉</span><span><strong>Game</strong><small>Center</small></span></button>
+    <button class="utility-action" data-action="schedule" type="button"><span class="utility-icon">▦</span><span><strong>Schedule</strong><small>All games</small></span></button>
+    <button class="utility-action" data-action="news" type="button"><span class="utility-icon">▤</span><span><strong>News</strong><small>Updates</small></span></button>
   </section>
 
   <section class="sport-strip" id="sportStrip" aria-label="Sports"></section>
@@ -59,7 +58,7 @@
       </div>
       <div class="panel"><div class="panel-title">◈ &nbsp;Sport</div><select id="sport"></select></div>
       <div class="panel"><div class="panel-title">◇ &nbsp;Conference</div><select id="conference"><option value="">All Conferences</option></select></div>
-      <div class="panel schools-panel"><div class="panel-title">⌂ &nbsp;Schools in selection <span id="schoolCount">0</span></div><div id="schoolList" class="school-list"><div class="empty mini-empty">Choose a sport or conference</div></div></div>
+      <div class="panel schools-panel"><div class="panel-title">⌂ &nbsp;Schools in selection <span id="schoolCount">0</span></div><input id="schoolSearch" class="side-search school-search" placeholder="Search school…" autocomplete="off"><div id="schoolList" class="school-list"><div class="empty mini-empty">Choose a sport or conference</div></div></div>
     </aside>
 
     <section class="feed-column" id="schedule">
@@ -82,6 +81,7 @@
 </main>
 
 <footer class="site-footer"><strong>NCAA ALL SPORTS</strong><span>Independent sports-information interface • 2026</span><small>Not affiliated with or endorsed by NCAA, ESPN, conferences or universities.</small></footer>
+<div id="commandPalette" class="command-palette hidden" role="dialog" aria-modal="true" aria-label="Search NCAA"><div class="command-box"><button id="commandClose" class="command-close" aria-label="Close">×</button><div class="command-kicker">NCAA ALL SPORTS SEARCH</div><h2>Find anything</h2><p>Teams, schools, sports, conferences or games</p><div class="command-input-wrap"><span>⌕</span><input id="commandInput" autocomplete="off" placeholder="Start typing…"><kbd>ESC</kbd></div><div id="commandSuggestions" class="command-suggestions"></div></div></div>
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true"><div class="dialog"><button id="close" aria-label="Close">×</button><div id="detail"></div></div></div>
 <script src="/app.js"></script>
 </body>
