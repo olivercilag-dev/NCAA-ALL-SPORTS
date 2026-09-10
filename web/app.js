@@ -27,7 +27,7 @@ const NCAA_CONFERENCES=[
 "ACC","American Athletic Conference","America East","ASUN Conference","Atlantic 10","Atlantic Coast Conference","Big 12","Big East","Big Sky","Big South","Big Ten","Big West","CAA","Coastal Athletic Association","Conference USA","Horizon League","Ivy League","MAAC","MAC","Metro Atlantic Athletic Conference","Mid-American Conference","Missouri Valley Conference","Mountain West","Northeast Conference","Ohio Valley Conference","Pac-12","Patriot League","SEC","SoCon","Southland Conference","Summit League","Sun Belt","SWAC","WAC","West Coast Conference","Western Athletic Conference","ASUN","Big East Conference","Colonial Athletic Association","America's East Conference","Atlantic Sun","Big South Conference","Southwestern Athletic Conference","Missouri Valley Football Conference","Pioneer Football League","Southern Conference","Southland","United Athletic Conference","Central Intercollegiate Athletic Association","Gulf South Conference","Lone Star Conference","Mid-America Intercollegiate Athletics Association","Great American Conference","Rocky Mountain Athletic Conference","Pennsylvania State Athletic Conference","Sunshine State Conference","Peach Belt Conference","Great Lakes Valley Conference","Great Lakes Intercollegiate Athletic Conference","Midwest Region Conference","Northern Sun Intercollegiate Conference","Mountain East Conference","South Atlantic Conference","Conference Carolinas","Gulf South","Lone Star","RMAC","PSAC","GLVC","GLIAC","NSIC","MEC","SAC","CIAA","SIAC","Southern Intercollegiate Athletic Conference","Northeast-10","NE10","Central Atlantic Collegiate Conference","CACC","East Coast Conference","ECC","Great Northeast Athletic Conference","GNAC","New England Women's and Men's Athletic Conference","NEWMAC","University Athletic Association","UAA","Southern Athletic Association","SAA","Centennial Conference","North Coast Athletic Conference","NCAC","Old Dominion Athletic Conference","ODAC","Presidents' Athletic Conference","PAC","New England Small College Athletic Conference","NESCAC","Commonwealth Coast Conference","CCC","Landmark Conference","Liberty League","Skyline Conference","USA South","American Rivers Conference","College Conference of Illinois and Wisconsin","CCIW","Midwest Conference","Michigan Intercollegiate Athletic Association","MIAA","Ohio Athletic Conference","OAC","Heartland Collegiate Athletic Conference","HCAC","Southern Collegiate Athletic Conference","SCAC","Southern California Intercollegiate Athletic Conference","SCIAC","Northwest Conference","NWC","Cascade Collegiate Conference","California Collegiate Athletic Association","CCAA","PacWest","Pacific West Conference","Great Northwest Athletic Conference","GNAC","Rocky Mountain Athletic Conference","RMAC","NCHC","Hockey East","ECAC Hockey","CCHA","Atlantic Hockey America","Big Ten Hockey","EIVA","MIVA","MPSF","EAGL","MRGC","NCAA Independent"]
 NCAA_CONFERENCES=list(dict.fromkeys(NCAA_CONFERENCES))
 
-let range="today",events=[];let directory={sports:{},conferences:{}};let schoolQuery="";let timezone=localStorage.getItem("ncaaTimezone")||"UTC";let timeFrom="",timeTo="";let selectedZones=["UTC"];try{const saved=JSON.parse(localStorage.getItem("ncaaSelectedZones")||"null");if(Array.isArray(saved)&&saved.length)selectedZones=saved}catch(_){localStorage.removeItem("ncaaSelectedZones")}if(!selectedZones.includes("UTC"))selectedZones.unshift("UTC");selectedZones=[...new Set(selectedZones)].slice(0,5);
+let range="next",events=Array.isArray(window.NCAA_BOOTSTRAP_EVENTS)?window.NCAA_BOOTSTRAP_EVENTS.map(e=>({...e,sport:canonicalSport(e.sport)})):[];let directory={sports:{},conferences:{}};let schoolQuery="";let timezone=localStorage.getItem("ncaaTimezone")||"UTC";let timeFrom="",timeTo="";let selectedZones=["UTC"];try{const saved=JSON.parse(localStorage.getItem("ncaaSelectedZones")||"null");if(Array.isArray(saved)&&saved.length)selectedZones=saved}catch(_){localStorage.removeItem("ncaaSelectedZones")}if(!selectedZones.includes("UTC"))selectedZones.unshift("UTC");selectedZones=[...new Set(selectedZones)].slice(0,5);
 const $=id=>document.getElementById(id);
 const ULTIMATE_EN={
   official_school:"Official school",official_schedule:"Official schedule",search_official:"Find official school",
@@ -258,7 +258,7 @@ function render(){
   const offset=range==='yesterday'?-1:range==='tomorrow'?1:0;
   let days=[];
   if(range==='next'){
-    for(let i=1;i<=7;i++){const d=new Date(base);d.setUTCDate(d.getUTCDate()+i);days.push(dayKey(d))}
+    for(let i=0;i<=7;i++){const d=new Date(base);d.setUTCDate(d.getUTCDate()+i);days.push(dayKey(d))}
   }else{
     const d=new Date(base);d.setUTCDate(d.getUTCDate()+offset);days=[dayKey(d)]
   }
@@ -477,36 +477,30 @@ async function loadHealth(){
 }
 async function load(){
   loadHealth();
+  // Bootstrap data is already present in the page, so the schedule is usable
+  // immediately even if the live API is slow or temporarily unavailable.
+  if(events.length) render();
   try{
     const response=await fetch("/api/events",{cache:"no-store",headers:{Accept:"application/json"}});
     if(!response.ok)throw new Error("HTTP "+response.status);
     const data=await response.json();
     if(!Array.isArray(data))throw new Error("Invalid API response");
-    events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));
-    render();
-    loadDirectory().then(()=>render()).catch(()=>{});
-  }catch(error){
-    console.error("NCAA API:",error);
-    // Presentation-safe fallback: use the verified bundled snapshot so the site
-    // remains fully usable even if the live API is temporarily unavailable.
-    try{
-      const fallback=await fetch("/data/events_snapshot.json",{cache:"no-store"});
-      if(!fallback.ok)throw new Error("Snapshot HTTP "+fallback.status);
-      const data=await fallback.json();
-      if(!Array.isArray(data))throw new Error("Invalid snapshot");
+    if(data.length){
       events=data.map(e=>({...e,sport:canonicalSport(e.sport)}));
       render();
-      const box=$("status");
-      box.className='data-engine-status refreshing';
-      $("engineStatusText").textContent=`Presentation snapshot online • ${events.length} verified events • live service reconnecting…`;
-      loadDirectory().then(()=>render()).catch(()=>{});
-    }catch(fallbackError){
-      console.error("NCAA snapshot:",fallbackError);
-      events=[];
-      $("feed").innerHTML=`<div class="empty">${t("api")}<br><br><small>Live data engine is reconnecting. Refresh the page in a moment.</small></div>`;
     }
+    loadDirectory().then(()=>render()).catch(()=>{});
+  }catch(error){
+    console.warn("Live API unavailable; using bundled presentation data",error);
+    if(!events.length && Array.isArray(window.NCAA_BOOTSTRAP_EVENTS)){
+      events=window.NCAA_BOOTSTRAP_EVENTS.map(e=>({...e,sport:canonicalSport(e.sport)}));
+      render();
+    }
+    const box=$("status"); if(box){box.className='data-engine-status refreshing'; $("engineStatusText").textContent=`Presentation data online • ${events.length} verified events • live service reconnecting…`;}
+    loadDirectory().then(()=>render()).catch(()=>{});
   }
 }
+
 function clock(){const d=new Date();const utc=d.toISOString().replace("T"," ").slice(0,19)+" UTC";$("clock").innerHTML=`<span class="clock-main">${esc(utc)}</span><span class="clock-utc">Primary time • UTC</span>`}
 function dismissSplash(){const s=document.getElementById("brandSplash");if(!s)return;s.classList.add("splash-hide");setTimeout(()=>s.remove(),500)}
 setDirection();
